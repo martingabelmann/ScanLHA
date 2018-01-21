@@ -122,8 +122,10 @@ class SPheno():
         fname = '%030x' % randrange(16**30)
         fin  = "{}/{}.in".format(self.config['slhadir'], fname)
         fout = "{}/{}.out".format(self.config['slhadir'], fname)
+        flog = "{}/{}.log".format(self.config['slhadir'], fname)
         with open(fin, 'w') as inputf:
             params = defaultdict(str, { '%{}%'.format(p) : v for p,v in params.items() })
+            print(params)
             inputf.write(self.tpl.format_map(params))
 
         proc = Popen([self.config.get('binary', './SPheno'), fin, fout], stderr=STDOUT, stdout=PIPE)
@@ -132,7 +134,7 @@ class SPheno():
         for p in pipe:
             if not p:
                 continue
-            with open(fout + '.log', 'w') as logf:
+            with open(flog + '.log', 'w') as logf:
                 log += 'parameters: {} \nmessage: {}\n\n'.format(
                             str(params),
                             p.decode('utf8').strip()
@@ -144,7 +146,7 @@ class SPheno():
                 os.remove(fout)
                 os.remove(fin)
             return slha
-        elif os.path.isfile(fout + '.log'):
+        elif os.path.isfile(flog):
             logging.warning(log)
             return fname + '.log'
         else:
