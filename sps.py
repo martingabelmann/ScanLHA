@@ -116,7 +116,7 @@ def genSLHA(blocks):
         out += 'BLOCK {}\n'.format(block['block'])
         for data in block['lines']:
             data = defaultdict(str,data)
-            if 'scan' in data:
+            if 'scan' in data or 'values' in data:
                 data['value'] = '{%' + str(data['id']) + block['block'] + '%}'
             out += '{id} {value} #{comment}\n'.format_map(data)
     return out
@@ -162,6 +162,16 @@ class SPheno():
         flog = "{}/{}.log".format(self.config['slhadir'], fname)
         with open(fin, 'w') as inputf:
             params = defaultdict(str, { '%{}%'.format(p) : v for p,v in params.items() })
+            for p,v in params.items():
+                if type(params[p]) == str:
+                    try:
+                        params[p] = eval(v.format_map(params))
+                    except:
+                        logging.error('Error while substituting %s.' % p)
+                        return -6
+                if type(params[p]) == str:
+                    logging.error('Substitution at %s did not yield a number.' % p)
+                    return -6
             inputf.write(self.tpl.format_map(params))
 
         proc = Popen([self.config.get('binary', './SPheno'), fin, fout], stderr=STDOUT, stdout=PIPE)
@@ -189,7 +199,7 @@ class SPheno():
             return -4
 
 class Scan():
-    def __init__(self, c, getblocks=['MASS']):
+    def __init__(self, c, getblocks=['MINPAR','MASS']):
         self.config = c
         self.template = genSLHA(c['blocks'])
         self.getblocks = getblocks
