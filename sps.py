@@ -25,9 +25,35 @@ class Config(dict):
         try:
             with open(self.src, 'r') as c:
                 self.update(yaml.safe_load(c))
+                self.validate()
+        except FileNotFoundError:
+            logging.error('File {} not found.' % self.src)
+            return -2
         except Exception as e:
-            logging.error("failed to load " + self.src)
+            logging.error("failed to load config" + self.src)
             logging.error(str(e))
+
+    def getBlock(self, block):
+        blockpos = [i for i,b in enumerate(self['blocks']) if b['block'] == block]
+        if not blockpos:
+            return
+        return self['blocks'][blockpos[0]]
+
+    def getLine(self, block, id):
+        b = self.getBlock(block)
+        if not b:
+            logging.error('Block {} not present in config.' % block)
+            return
+        lines = b['lines']
+        linepos = [i for i,l in enumerate(lines) if 'id' in l and l['id'] == id]
+        if not linepos:
+            return
+        return lines[linepos[0]]
+
+    def validate(self):
+        if 'blocks' not in self:
+            logging.error("No 'blocks' section in config ")
+            return
 
 def genSLHA(blocks):
     """generate SLHA"""
@@ -46,10 +72,10 @@ def parseSLHA(slhafile, blocks=[]):
         with open(slhafile,'r') as f:
             slha = pylha.load(f)
     except FileNotFoundError:
-        logging.error('File ' + slhafile + ' not found.')
+        logging.error('File {} not found.' % slhafile)
         return -2
     except:
-        print('Could not parse ' + slhafile + '!')
+        logging.error('Could not parse {} !' % slhafile)
         return -3
     slha_block = slha['BLOCK']
     if blocks:
@@ -114,60 +140,58 @@ class Scan():
         self.getblocks = getblocks
         self.spheno = SPheno(c['spheno'], self.template, self.getblocks)
         self.scanset = []
-        self.scanparas = defaultdict(defaultdict)
+        self.values = []
         for block in c['blocks']:
-            for p in block['lines']:
-                if 'scan' in p:
-                    self.scanparas[block['block']][p['id']] = p['scan']
-        if not self.scanparas:
-            logging.warning("No scan parameters defined in condig!")
-            logging.warning("Register a scan with registerScan(<block>, <para-id>, [<start>,<end>,<stepsize>])")
+            for line in block['lines']:
+                if 'scan' in line:
+                    self.addScanRange(block['block'], line)
+                elif 'values' in line:
+                    self.addValues(block['block'], line)
+        if not self.values:
+            logging.warning("No scan parameters defined in config!")
+            logging.warning("Register a scan range with addScanRange(<block>, {'id': <para-id>, 'scan': [<start>,<end>,<stepsize>]})")
+            logging.warning("Register a list of scan values with  addScanValues(<block>,{'id': <para-id>, 'values': [1,3,6,...])")
 
-    def addToTemplate(self, block, paraid, scanrange, parameter=None, comment=None):
+    def addScanRange(self, block, line):
+        if 'id' not in line:
+            logging.error("No 'id' set for parameter.")
+            return
+        if 'scan' not in line or len(line['scan']) != 3:
+            logging.error("No proper 'scan' option set for parameter %d." % line['id'])
+            return
         # add scan-parameter to config (if not already)
-        if len(scanrange) != 3:
-            logging.error("No proper 'scan' option set for parameter: " + paraid)
+        b = self.config.getBlock(block)
+        l = self.config.getLine(block, line['id'])
+        if not b:
             return
-        if 'blocks' not in self.config:
-            logging.error("No 'blocks' section in config ")
-            return
-        blockpos = [i for i,b in enumerate(self.config['blocks']) if b == block]
-        if len(blockpos) != 1:
-            logging.error('Block "' + block + ' should appear exactly once in Block ' + block)
-        lines = self.config['blocks'][blockpos[0]]['lines']
-        linepos = [i for i,l in enumerate(lines) if 'id' in l and l['id'] == paraid]
-        if not linepos:
-            lines.append({'parameter':parameter,'id':paraid,'scan':scanrange,'comment':comment})
-        elif len(linepos) > 1:
-            logging.error('Parameter with id ' + paraid + ' has multiple occurence in config')
-            return
+        if not l:
+            logging.debug('Appending new line with ID %d.' % line['id'])
+            b['lines'].append(line)
         else:
-            if not parameter and 'parameter' in lines[linepos[0]]:
-                parameter = lines[linepos[0]]['parameter']
-            if not comment and 'comment' in lines[linepos[0]]:
-                comment = lines[linepos[0]]['comment']
-            lines[linepos[0]] = {'parameter':parameter,'id':paraid,'scan':scanrange,'comment':comment}
+            logging.debug('Updating line with ID %d.' % line['id'])
+            l = line
+        l.update({'values': linspace(*line['scan'])})
+        self.addScanValues(block, line)
+
+    def addScanValues(self, block, line):
+        if 'id' not in line:
+            logging.error("No 'id' set for parameter.")
+            return
+        if 'values' not in line or len(line['values']) < 1:
+            logging.error("No proper 'values' option set for paramete %d." % line['id'])
+            return
 
         # update the slha template with new config
         self.template = genSLHA(self.config['blocks'])
-        return self.template
+        self.values.append([{str(line['id']) + block: num} for num in line['values']])
 
-    def buildScanset(self, maxram=0.1, threads=4):
-        numparas = prod([p[2] for paras in self.scanparas.values() for p in paras.values()])
+    def build(self):
+        numparas = prod([len(v) for v in self.values])
         logging.info('Expanding scan ranges for scan parameters.')
-        values = []
-        for block,paras in self.scanparas.items():
-            for p,scan in paras.items():
-                values.append([{str(p) + block: num} for num in linspace(*scan)])
-
-        logging.info('Build all ' + str(numparas) + ' combinations.')
-        self.scanset = list(product(*values))
-        return numparas
-
-    def registerScan(self, block, paraid, scanrange, parameter=None, comment=None):
-        if self.addToTemplate(block,paraid,scanrange,parameter,comment):
-            self.scanparas[block][paraid] = scanrange
-            return self.scanparas
+        logging.info('Build all %d parameter poins.' % numparas)
+        self.scanset = list(product(*self.values))
+        if self.scanset:
+            return numparas
         return
 
     # TODO:
