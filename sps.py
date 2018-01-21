@@ -31,7 +31,9 @@ class Config(dict):
         try:
             with open(self.src, 'r') as c:
                 self.update(yaml.safe_load(c))
-                self.validate()
+                if not self.validate():
+                    logging.error('Errorenous config file.')
+                    exit(1)
         except FileNotFoundError:
             logging.error('File {} not found.' % self.src)
             return -2
@@ -56,33 +58,56 @@ class Config(dict):
             return
         return lines[linepos[0]]
 
+    def setBlock(self, block, lines=[]):
+        b = self.getBlock(block)
+        if b:
+            b['lines'] = lines
+        else:
+            self['blocks'].append({'block':block, 'lines': lines})
+
+    def setLine(self, block, line):
+        # add scan-parameter to config (if not already)
+        b = self.getBlock(block)
+        linepos = [i for i,l in enumerate(b['lines']) if 'id' in l and l['id'] == line['id']]
+        if not b:
+            return
+        if not linepos:
+            logging.info('Appending new line with ID %d.' % line['id'])
+            b['lines'].append(line)
+        else:
+            logging.info('Updating line with ID %d.' % line['id'])
+            b['lines'][linepos[0]] = line
+        return self.validate()
+
     def validate(self):
+        ok = True
         if 'blocks' not in self:
             logging.error("No 'blocks' section in config ")
-            return
+            ok = False
         # check for double entries
         seen = []
         for block in self['blocks']:
             for line in block['lines']:
                 if 'id' not in line:
                     logging.error('No ID set for line entry!')
-                    continue
+                    ok = False
                 if [block['block'],line['id']] in seen:
                     logging.error('Parameter {} in block {} set twice! Taking the first occurence.'.format(line['id'], block['block']))
-                    continue
+                    ok = False
                 if 'value' in line:
                     try:
                         float(line['value'])
                     except ValueError:
                         logging.error("'value' must be a number not {} ({}, {}).".format(str(type(line['value'])), block['block'], line['id']))
-                        continue
+                        ok = False
                 if 'values' in line and type(line['values']) != list and len(line['values']) < 1:
                     logging.error("'values' must be a nonemtpy list ({}, {}).".format(block['block'], line['id']))
-                    continue
+                    ok = False
                 if 'scan' in line and type(line['scan']) != list and len(line['scan']) < 2:
                     logging.error("'scan' must be a nonemtpy list ({}, {}).".format(block['block'], line['id']))
-                    continue
+                    ok = False
                 seen.append([block['block'], line['id']])
+        return ok
 
 def genSLHA(blocks):
     """generate SLHA"""
@@ -170,14 +195,16 @@ class Scan():
         self.getblocks = getblocks
         self.spheno = SPheno(c['spheno'], self.template, self.getblocks)
         self.scanset = []
-        self.values = []
+        scan = None
         for block in c['blocks']:
             for line in block['lines']:
                 if 'scan' in line:
                     self.addScanRange(block['block'], line)
+                    scan = True
                 elif 'values' in line:
                     self.addScanValues(block['block'], line)
-        if not self.values:
+                    scan = True
+        if not scan:
             logging.warning("No scan parameters defined in config!")
             logging.warning("Register a scan range with addScanRange(<block>, {'id': <para-id>, 'scan': [<start>,<end>,<stepsize>]})")
             logging.warning("Register a list of scan values with  addScanValues(<block>,{'id': <para-id>, 'values': [1,3,6,...])")
@@ -189,19 +216,8 @@ class Scan():
         if 'scan' not in line or len(line['scan']) < 2:
             logging.error("No proper 'scan' option set for parameter %d." % line['id'])
             return
-        # add scan-parameter to config (if not already)
-        b = self.config.getBlock(block)
-        l = self.config.getLine(block, line['id'])
-        if not b:
-            return
-        if not l:
-            logging.debug('Appending new line with ID %d.' % line['id'])
-            b['lines'].append(line)
-        else:
-            logging.debug('Updating line with ID %d.' % line['id'])
-            l = line
         dist = self.config.distribution.get(line['distribution'], linspace) if 'distribution' in line else linspace
-        l.update({'values': dist(*line['scan'])})
+        line.update({'values': dist(*line['scan'])})
         self.addScanValues(block, line)
 
     def addScanValues(self, block, line):
@@ -211,17 +227,19 @@ class Scan():
         if 'values' not in line or len(line['values']) < 1:
             logging.error("No proper 'values' option set for paramete %d." % line['id'])
             return
-
+        self.config.setLine(block, line)
         # update the slha template with new config
         self.template = genSLHA(self.config['blocks'])
-        self.values.append([{str(line['id']) + block: num} for num in line['values']])
-        self.config.validate()
 
     def build(self):
-        numparas = prod([len(v) for v in self.values])
-        logging.info('Expanding scan ranges for scan parameters.')
+        values = []
+        for block in self.config['blocks']:
+            for line in block['lines']:
+                if 'values' in line:
+                    values.append([{str(line['id']) + block['block']: num} for num in line['values']])
+        numparas = prod([len(v) for v in values])
         logging.info('Build all %d parameter poins.' % numparas)
-        self.scanset = list(product(*self.values))
+        self.scanset = list(product(*values))
         if self.scanset:
             return numparas
         return
