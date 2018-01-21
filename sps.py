@@ -70,6 +70,18 @@ class Config(dict):
                 if [block['block'],line['id']] in seen:
                     logging.error('Parameter {} in block {} set twice! Taking the first occurence.'.format(line['id'], block['block']))
                     continue
+                if 'value' in line:
+                    try:
+                        float(line['value'])
+                    except ValueError:
+                        logging.error("'value' must be a number not {} ({}, {}).".format(str(type(line['value'])), block['block'], line['id']))
+                        continue
+                if 'values' in line and type(line['values']) != list and len(line['values']) < 1:
+                    logging.error("'values' must be a nonemtpy list ({}, {}).".format(block['block'], line['id']))
+                    continue
+                if 'scan' in line and type(line['scan']) != list and len(line['scan']) < 2:
+                    logging.error("'scan' must be a nonemtpy list ({}, {}).".format(block['block'], line['id']))
+                    continue
                 seen.append([block['block'], line['id']])
 
 def genSLHA(blocks):
@@ -125,7 +137,6 @@ class SPheno():
         flog = "{}/{}.log".format(self.config['slhadir'], fname)
         with open(fin, 'w') as inputf:
             params = defaultdict(str, { '%{}%'.format(p) : v for p,v in params.items() })
-            print(params)
             inputf.write(self.tpl.format_map(params))
 
         proc = Popen([self.config.get('binary', './SPheno'), fin, fout], stderr=STDOUT, stdout=PIPE)
@@ -165,7 +176,7 @@ class Scan():
                 if 'scan' in line:
                     self.addScanRange(block['block'], line)
                 elif 'values' in line:
-                    self.addValues(block['block'], line)
+                    self.addScanValues(block['block'], line)
         if not self.values:
             logging.warning("No scan parameters defined in config!")
             logging.warning("Register a scan range with addScanRange(<block>, {'id': <para-id>, 'scan': [<start>,<end>,<stepsize>]})")
@@ -175,7 +186,7 @@ class Scan():
         if 'id' not in line:
             logging.error("No 'id' set for parameter.")
             return
-        if 'scan' not in line or len(line['scan']) != 3:
+        if 'scan' not in line or len(line['scan']) < 2:
             logging.error("No proper 'scan' option set for parameter %d." % line['id'])
             return
         # add scan-parameter to config (if not already)
@@ -204,6 +215,7 @@ class Scan():
         # update the slha template with new config
         self.template = genSLHA(self.config['blocks'])
         self.values.append([{str(line['id']) + block: num} for num in line['values']])
+        self.config.validate()
 
     def build(self):
         numparas = prod([len(v) for v in self.values])
