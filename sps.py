@@ -9,7 +9,7 @@ import logging
 from subprocess import Popen, STDOUT, PIPE
 from collections import defaultdict,ChainMap
 import os
-from numpy import linspace, prod
+from numpy import linspace, logspace, geomspace, arange, prod
 from concurrent.futures import ThreadPoolExecutor
 from itertools import product
 from random import randrange
@@ -19,6 +19,12 @@ logging.getLogger().setLevel(logging.INFO)
 class Config(dict):
     def __init__(self,src):
         self.src = src
+        self.distribution = {
+                'linear': linspace,
+                'log': logspace,
+                'geom': geomspace,
+                'arange': arange
+                }
         self.load()
 
     def load(self):
@@ -30,7 +36,7 @@ class Config(dict):
             logging.error('File {} not found.' % self.src)
             return -2
         except Exception as e:
-            logging.error("failed to load config" + self.src)
+            logging.error("failed to load config file " + self.src)
             logging.error(str(e))
 
     def getBlock(self, block):
@@ -54,6 +60,17 @@ class Config(dict):
         if 'blocks' not in self:
             logging.error("No 'blocks' section in config ")
             return
+        # check for double entries
+        seen = []
+        for block in self['blocks']:
+            for line in block['lines']:
+                if 'id' not in line:
+                    logging.error('No ID set for line entry!')
+                    continue
+                if [block['block'],line['id']] in seen:
+                    logging.error('Parameter {} in block {} set twice! Taking the first occurence.'.format(line['id'], block['block']))
+                    continue
+                seen.append([block['block'], line['id']])
 
 def genSLHA(blocks):
     """generate SLHA"""
@@ -170,7 +187,8 @@ class Scan():
         else:
             logging.debug('Updating line with ID %d.' % line['id'])
             l = line
-        l.update({'values': linspace(*line['scan'])})
+        dist = self.config.distribution.get(line['distribution'], linspace) if 'distribution' in line else linspace
+        l.update({'values': dist(*line['scan'])})
         self.addScanValues(block, line)
 
     def addScanValues(self, block, line):

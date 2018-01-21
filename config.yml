@@ -43,6 +43,7 @@ blocks:
       - parameter: MSUSY
         id: 14
         scan: [1000, 30000, 100]
+        distribution: 'geom'
       - parameter: TanBeta
         id: 15
         scan: [1, 50, 4]
@@ -52,3 +53,5 @@ blocks:
       - parameter: lo
         id: 16
         value: 1
+      - id: 16
+        value: 12
