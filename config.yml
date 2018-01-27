@@ -5,7 +5,7 @@
 
 
 spheno:
-  binary: '../bin/SPhenoMSSM'
+  binary: '../bin/SPhenoSM'
   slhadir: '/dev/shm/slha'
 
 blocks:
@@ -47,9 +47,9 @@ blocks:
       - parameter: TanBeta
         id: 15
         scan: [1, 50, 4]
-        #      - parameter: nlo
-        #        id: 17
-        #        scan: [0, 1]
-        #      - parameter: lo
-        #        id: 16
-        #        value: 1
+      - parameter: nlo
+        id: 17
+        scan: [0, 1]
+      - parameter: lo
+        id: 16
+        value: 1
