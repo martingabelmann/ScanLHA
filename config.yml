@@ -5,7 +5,7 @@
 
 
 spheno:
-  binary: '../bin/SPhenoSM'
+  binary: '../bin/SPhenoMSSM'
   slhadir: '/dev/shm/slha'
 
 blocks:
@@ -35,21 +35,21 @@ blocks:
       - id: 12
         value: 1.00000000E-04
         comment: 'write only branching ratios larger than this value'
-  - block: MINPAR
+  - block: EXTPAR
     lines:
       - parameter: At
         id: 11
-        values: ["{%14MINPAR%}/{%15MINPAR%}"]
+        values: ["{%14EXTPAR%}/{%15EXTPAR%}"]
       - parameter: MSUSY
         id: 14
-        scan: [1000, 30000, 10]
+        scan: [1000, 30000, 40]
         distribution: 'geom'
       - parameter: TanBeta
         id: 15
         scan: [1, 50, 4]
-      - parameter: nlo
-        id: 17
-        scan: [0, 1, 2]
-      - parameter: lo
-        id: 16
-        value: 1
+        #      - parameter: nlo
+        #        id: 17
+        #        scan: [0, 1]
+        #      - parameter: lo
+        #        id: 16
+        #        value: 1

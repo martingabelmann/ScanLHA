@@ -118,7 +118,7 @@ def genSLHA(blocks):
             data = defaultdict(str,data)
             if 'scan' in data or 'values' in data:
                 data['value'] = '{%' + str(data['id']) + block['block'] + '%}'
-            out += '{id} {value} #{comment}\n'.format_map(data)
+            out += '{id} {value} #{parameter} {comment}\n'.format_map(data)
     return out
 
 def parseSLHA(slhafile, blocks=[]):
@@ -126,10 +126,10 @@ def parseSLHA(slhafile, blocks=[]):
         with open(slhafile,'r') as f:
             slha = pylha.load(f)
     except FileNotFoundError:
-        logging.error('File {} not found.' % slhafile)
+        logging.error('File %s not found.' % slhafile)
         return -2
     except:
-        logging.error('Could not parse {} !' % slhafile)
+        logging.error('Could not parse %s !' % slhafile)
         return -3
     slha_block = slha['BLOCK']
     if blocks:
@@ -146,6 +146,10 @@ class SPheno():
             self.config['slhadir'] = '/tmp/slha'
         if not os.path.exists(self.config['slhadir']):
             os.makedirs(self.config['slhadir'])
+        self.binary = self.config.get('binary', './SPheno')
+        if not os.path.isfile(self.binary):
+            logging.error('SPheno binary %s not found!' % self.binary)
+            exit(1)
 
     def run(self, params):
         if type(params) != dict:
@@ -166,21 +170,22 @@ class SPheno():
                 if type(params[p]) == str:
                     try:
                         params[p] = eval(v.format_map(params))
-                    except:
+                    except Exception as e:
                         logging.error('Error while substituting %s.' % p)
+                        logging.error(str(e))
                         return -6
                 if type(params[p]) == str:
                     logging.error('Substitution at %s did not yield a number.' % p)
                     return -6
             inputf.write(self.tpl.format_map(params))
 
-        proc = Popen([self.config.get('binary', './SPheno'), fin, fout], stderr=STDOUT, stdout=PIPE)
+        proc = Popen([self.binary, fin, fout], stderr=STDOUT, stdout=PIPE)
         pipe = proc.communicate(timeout=self.timeout)
         log = ''
         for p in pipe:
             if not p:
                 continue
-            with open(flog + '.log', 'w') as logf:
+            with open(flog, 'w') as logf:
                 log += 'parameters: {} \nmessage: {}\n\n'.format(
                             str(params),
                             p.decode('utf8').strip()
