@@ -286,7 +286,7 @@ class Scan():
     # ability to split/parallelize scan-range over qsub
     def submit(self,w):
         with ThreadPoolExecutor(w) as executor:
-            self.results = zip(self.scanset,executor.map(self.spheno.run, self.scanset))
+            self.results = executor.map(self.spheno.run, self.scanset)
 
     def save(self):
         pass
