@@ -13,7 +13,6 @@ from numpy import linspace, logspace, geomspace, arange, prod
 from concurrent.futures import ThreadPoolExecutor
 from itertools import product
 from random import randrange
-
 logging.getLogger().setLevel(logging.INFO)
 
 class Config(dict):
@@ -175,12 +174,6 @@ class SPheno():
             exit(1)
 
     def run(self, params):
-        if type(params) != dict:
-            try:
-                params = dict(ChainMap(*params))
-            except:
-                logging.error('Could not read params: ', params)
-                return -5
         # TODO: Too long filenames/argument for subprocess?
         # fname = '_'.join(['{}.{}'.format(p,v) for p,v in params.items()])
         fname = '%030x' % randrange(16**30)
@@ -188,18 +181,10 @@ class SPheno():
         fout = "{}/{}.out".format(self.config['slhadir'], fname)
         flog = "{}/{}.log".format(self.config['slhadir'], fname)
         with open(fin, 'w') as inputf:
-            params = defaultdict(str, { '%{}%'.format(p) : v for p,v in params.items() })
-            for p,v in params.items():
-                if type(params[p]) == str:
-                    try:
-                        params[p] = eval(v.format_map(params))
-                    except Exception as e:
-                        logging.error('Error while substituting %s.' % p)
-                        logging.error(str(e))
-                        return -6
-                if type(params[p]) == str:
-                    logging.error('Substitution at %s did not yield a number.' % p)
-                    return -6
+            try:
+                params = defaultdict(str, { '%{}%'.format(p) : v for p,v in params.items() })
+            except ValueError:
+                logging.error("Could not substitute ", params)
             inputf.write(self.tpl.format_map(params))
 
         proc = Popen([self.binary, fin, fout], stderr=STDOUT, stdout=PIPE)
@@ -269,6 +254,9 @@ class Scan():
         # update the slha template with new config
         self.template = genSLHA(self.config['blocks'])
 
+    def _substitute(self, param_tuple):
+        return { p : eval(str(v).format_map(dict(ChainMap(*param_tuple)))) for p,v in dict(ChainMap(*param_tuple)).items() }
+
     def build(self):
         values = []
         for block in self.config['blocks']:
@@ -278,6 +266,8 @@ class Scan():
         numparas = prod([len(v) for v in values])
         logging.info('Build all %d parameter poins.' % numparas)
         self.scanset = list(product(*values))
+        with ThreadPoolExecutor(2) as executor:
+            self.scanset = list(executor.map(self._substitute, self.scanset))
         if self.scanset:
             return numparas
         return

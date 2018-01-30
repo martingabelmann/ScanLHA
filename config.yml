@@ -39,10 +39,10 @@ blocks:
     lines:
       - parameter: At
         id: 11
-        values: ["{%14MINPAR%}/{%15MINPAR%}"]
+        values: ["{14MINPAR}/{15MINPAR}"]
       - parameter: MSUSY
         id: 14
-        scan: [1000, 30000, 40]
+        scan: [1000, 30000, 4000]
         distribution: 'geom'
       - parameter: TanBeta
         id: 15
