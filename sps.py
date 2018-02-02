@@ -13,6 +13,9 @@ from numpy import linspace, logspace, geomspace, arange, prod
 from concurrent.futures import ThreadPoolExecutor
 from itertools import product
 from random import randrange
+from pandas.io.json import json_normalize
+from pandas import HDFStore
+
 logging.getLogger().setLevel(logging.INFO)
 
 class Config(dict):
@@ -212,7 +215,7 @@ class SPheno():
             return -4
 
 class Scan():
-    def __init__(self, c, getblocks=['MINPAR','MASS']):
+    def __init__(self, c, getblocks=[]):
         self.config = c
         self.template = genSLHA(c['blocks'])
         self.getblocks = getblocks
@@ -276,10 +279,12 @@ class Scan():
     # ability to split/parallelize scan-range over qsub
     def submit(self,w):
         with ThreadPoolExecutor(w) as executor:
-            self.results = executor.map(self.spheno.run, self.scanset)
+            self.results = json_normalize(list(executor.map(self.spheno.run, self.scanset)))
 
-    def save(self):
-        pass
+    def save(self, filename='store.hdf'):
+        store = HDFStore(filename)
+        store['results'] = self.results
+        store.close()
 
 class Plot():
     def __init__(self,data):
