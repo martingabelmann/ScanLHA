@@ -183,9 +183,9 @@ class SPheno():
         with open(fin, 'w') as inputf:
             try:
                 params = defaultdict(str, { '%{}%'.format(p) : v for p,v in params.items() })
-            except ValueError:
+                inputf.write(self.tpl.format_map(params))
+            except KeyError:
                 logging.error("Could not substitute ", params)
-            inputf.write(self.tpl.format_map(params))
 
         proc = Popen([self.binary, fin, fout], stderr=STDOUT, stdout=PIPE)
         pipe = proc.communicate(timeout=self.timeout)
