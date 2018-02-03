@@ -15,6 +15,7 @@ from itertools import product
 from random import randrange
 from pandas.io.json import json_normalize
 from pandas import HDFStore
+import json
 
 logging.getLogger().setLevel(logging.INFO)
 
@@ -175,6 +176,7 @@ class SPheno():
         if not os.path.isfile(self.binary):
             logging.error('SPheno binary %s not found!' % self.binary)
             exit(1)
+        # TODO: copy binary into ram, execute from ram directory
 
     def run(self, params):
         # TODO: Too long filenames/argument for subprocess?
@@ -279,7 +281,7 @@ class Scan():
     # ability to split/parallelize scan-range over qsub
     def submit(self,w):
         with ThreadPoolExecutor(w) as executor:
-            self.results = json_normalize(list(executor.map(self.spheno.run, self.scanset)))
+            self.results = json_normalize(json.loads(json.dumps(list(executor.map(self.spheno.run, self.scanset)))))
 
     def save(self, filename='store.hdf'):
         store = HDFStore(filename)
