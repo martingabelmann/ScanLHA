@@ -277,24 +277,35 @@ class Scan():
     def _substitute(self, param_tuple):
         return { p : eval(str(v).format_map(dict(ChainMap(*param_tuple)))) for p,v in dict(ChainMap(*param_tuple)).items() }
 
-    def build(self):
+    def build(self,num_workers=4):
         values = []
         for block in self.config['blocks']:
             for line in block['lines']:
                 if 'values' in line:
                     values.append([{str(line['id']) + block['block']: num} for num in line['values']])
-        numparas = prod([len(v) for v in values])
-        logging.info('Build all %d parameter poins.' % numparas)
-        self.scanset = list(product(*values))
-        with ThreadPoolExecutor(2) as executor:
-            self.scanset = list(executor.map(self._substitute, self.scanset))
+        self.numparas = prod([len(v) for v in values])
+        logging.info('Build all %d parameter poins.' % self.numparas)
+        self.scanset = [ self._substitute(s) for s in list(product(*values)) ]
+
         if self.scanset:
-            return numparas
+            return self.numparas
         return
 
-    # TODO:
-    # ability to split/parallelize scan-range over qsub
-    def submit(self,w):
+    def _run(self, dataset):
+        logging.info(str(len(dataset)))
+        return [ self.spheno.run(d) for d in dataset ]
+
+    def submit(self,w=None):
+        w = os.cpu_count() if not w else w
+        chunks = int(self.numparas/w)
+        self.scanset = [self.scanset[i:i+chunks] for i in range(0, self.numparas, chunks)]
+        with ThreadPoolExecutor(w) as executor:
+            self.results = json_normalize(json.loads(json.dumps(
+                            [ r for rset in executor.map(self._run, self.scanset) for r in rset ]
+                            )))
+        self.scanset = [ s for sset in self.scanset for s in sset ]
+
+    def submit2(self,w):
         with ThreadPoolExecutor(w) as executor:
             self.results = json_normalize(json.loads(json.dumps(list(executor.map(self.spheno.run, self.scanset)))))
 
