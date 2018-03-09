@@ -5,7 +5,7 @@
 
 
 spheno:
-  binary: '../bin/SPhenoSM'
+  binary: '../bin/SPhenoMSSM'
   slhadir: '/dev/shm/slha'
 
 blocks:
@@ -45,21 +45,4 @@ blocks:
       - {id: 76, value: 0}
       - {id: 530, value: 0}
   - block: MINPAR
-    lines:
-      - parameter: At
-        id: 11
-        value: 0
-        # values: ["{14MINPAR}/{15MINPAR}"]
-      - parameter: MSUSY
-        id: 14
-        scan: [1e3, 1e5, 100]
-        distribution: 'geom'
-      - parameter: TanBeta
-        id: 15
-        values: [10]
-      - parameter: nlo
-        id: 17
-        value: 1
-      - parameter: lo
-        id: 16
-        value: 1
+    lines: []

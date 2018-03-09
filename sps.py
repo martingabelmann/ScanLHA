@@ -309,9 +309,9 @@ class Scan():
         with ThreadPoolExecutor(w) as executor:
             self.results = json_normalize(json.loads(json.dumps(list(executor.map(self.spheno.run, self.scanset)))))
 
-    def save(self, filename='store.hdf'):
+    def save(self, filename='store.hdf', path='results'):
         store = HDFStore(filename)
-        store['results'] = self.results
+        store[path] = self.results
         store.close()
 
 class Plot():
