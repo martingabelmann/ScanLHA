@@ -225,10 +225,10 @@ class SPheno():
                 os.remove(fin)
             return slha
         elif os.path.isfile(flog):
-            logging.warning(log)
-            return fname + '.log'
+            logging.debug(log)
+            return {'log':fname + '.log'}
         else:
-            return -4
+            return {'error': -4}
 
 class Scan():
     def __init__(self, c, getblocks=[]):
