@@ -1,22 +1,23 @@
 import sps
 import matplotlib
 from pandas import read_hdf
+from collections import OrderedDict
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 # Definitions
-MINPARID = {
-        'MSSM' : { 'At':1, 'MSUSY':2, 'TanBeta':3 } ,
-        'NMSSM' : { 'At':1, 'LambdaS':2, 'MSUSY':3, 'TanBeta':4}
-        # 'NMSSMNoSq' : { 'LambdaS':1, 'TanBeta':2,  'MSUSY':3}
-        }
+MINPARID = OrderedDict()
+MINPARID['NMSSM'] = { 'At':1, 'LambdaS':2, 'MSUSY':3, 'TanBeta':4}
+MINPARID['MSSM']  = { 'At':1, 'MSUSY':2, 'TanBeta':3 }
+# MINPARID['NMSSMNoSq'] = { 'LambdaS':1, 'TanBeta':2,  'MSUSY':3}
+
 MARKER = { 'NMSSM': 'o', 'MSSM': '+'}
 
 MINPARVAL = {
         'At': {'value': 0},
         'TanBeta': { 'values': [1, 4] },
-        'MSUSY': { 'scan': [1e3, 1e16, 100], 'distribution': 'geom' },
-        'LambdaS': { 'values': [0.1, 0.3,0.6] }
+        'MSUSY': { 'scan': [1e3, 1e16, 50], 'distribution': 'geom' },
+        'LambdaS': { 'values': [0.3, 0.2, 0] }
         }
 
 LATEX = {
@@ -63,13 +64,11 @@ def runscan(c, model):
 
 def getSubPlot(model, filters):
     r = results[model]
-    label = ''
     for para,value in filters.items():
         paraid = 'MINPAR.values.%d' % MINPARID[model][para]
         r = r.loc[r[paraid] == value]
-        label += "${} = {}$ ".format(LATEX[para],value)
     key = 'MINPAR.values.%d' % MINPARID[model]['MSUSY']
-    return (list(r[key]), list(r['MASS.values.25']), label)
+    return (list(r[key]), list(r['MASS.values.25']))
 
 # Scans
 skip = 'r'
@@ -87,24 +86,28 @@ if READINMEMORY or skip == 's':
 
 # Plots: one plot for each value of TanBeta
 print('Generating plots.')
+plt.rcParams.update({'font.size': 15})
 for tanb in MINPARVAL['TanBeta']['values']:
     fig = plt.figure()
-    plt.axhline(y=125, color='r', linestyle='-')
     plt.rc('text', usetex=True)
     plt.xlabel(r'$M_{SUSY}$ / GeV')
     plt.ylabel(r'$m_{H}$ / GeV')
     ax = plt.gca()
+    ax.plot([],[],' ', marker=None, label="$\\tan\\beta=" + str(tanb) + "$")
+    ax.legend()
+    plt.axhline(y=125, color='r', linestyle='-', label="125 GeV")
+    Label = ''
     for model,minpar in MINPARID.items():
         if 'LambdaS' not in minpar.keys():
             mhmsusy = getSubPlot(model,{'TanBeta': tanb})
-            Label = model + ': ' + mhmsusy[2]
-            ax.scatter(mhmsusy[0],mhmsusy[1], label=Label, s=20, marker=MARKER[model])
+            Label = model
+            ax.plot(mhmsusy[0],mhmsusy[1], label=Label, linewidth=2, c='black')
             continue
         for lams in MINPARVAL['LambdaS']['values']:
             Label = model + ': '
             mhmsusy = getSubPlot(model,{'TanBeta': tanb, 'LambdaS': lams})
-            Label = model + ': ' + mhmsusy[2]
-            ax.scatter(mhmsusy[0],mhmsusy[1], label=Label, s=20, marker=MARKER[model])
+            Label = model + ': $\lambda_s = ' + str(lams) + '$'
+            ax.scatter(mhmsusy[0],mhmsusy[1], label=Label, s=25, marker=MARKER[model])
     plt.legend(loc='lower right')
     ax.set_xscale('log')
     print('TanBeta = %d'%tanb)

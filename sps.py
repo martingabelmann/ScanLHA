@@ -314,16 +314,6 @@ class Scan():
         store[path] = self.results
         store.close()
 
-class Plot():
-    def __init__(self,data):
-        pass
-
-    def show():
-        pass
-
-    def save():
-        pass
-
 def parse_args():
     parser = argparse.ArgumentParser(description="Perform a scan with SPheno.")
     parser.add_argument('config', help='yaml config file', nargs='?', default='config.yml')
