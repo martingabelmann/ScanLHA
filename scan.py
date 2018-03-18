@@ -1,9 +1,11 @@
-import sps
+#!/usr/bin/env python3
+import ScanLHA
+import os
 import matplotlib
 from pandas import read_hdf
 from collections import OrderedDict
 matplotlib.use('Agg')
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt # pylint: disable=E402
 
 # Definitions
 MINPARID = OrderedDict()
@@ -33,7 +35,7 @@ READINMEMORY = True
 HDFSTORE = 'scans/MSSMvsNMSSM/store.h5'
 
 # Load default config
-c = sps.Config('config.yml')
+c = ScanLHA.Config('config.yml')
 
 # Helper functions
 def setMINPAR(c, model, para, value):
@@ -54,7 +56,7 @@ def runscan(c, model):
         setMINPAR(c, model, para, value)
     setbinary(c,model)
     print('scanning ' + model + ' ...')
-    scan = sps.Scan(c,getblocks=[])
+    scan = ScanLHA.Scan(c,getblocks=[])
     scan.build()
     scan.submit()
     if 'log' in scan.results:
@@ -72,11 +74,11 @@ def getSubPlot(model, filters):
 
 # Scans
 skip = 'r'
-if sps.os.path.exists(HDFSTORE):
+if os.path.exists(HDFSTORE):
     skip = input('Old scans found. Delete and rescan [r] or skip scans [s]? (enter = rescan)')
 
 if skip == 'r' or skip == '':
-    results = sps.HDFStore(HDFSTORE)
+    results = ScanLHA.HDFStore(HDFSTORE)
     [ results.put(model, runscan(c,model)) for model in MINPARID.keys() ]
     results.close()
 
