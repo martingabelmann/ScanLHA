@@ -3,7 +3,8 @@ import logging
 from collections import ChainMap
 import os
 from numpy import linspace, prod
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from tqdm import tqdm
 from itertools import product
 from pandas.io.json import json_normalize
 from pandas import HDFStore
@@ -75,22 +76,23 @@ class Scan():
         return
 
     def _run(self, dataset):
-        logging.info(str(len(dataset)))
-        return [ self.runner.run(d) for d in dataset ]
+        # this is still buggy: https://github.com/tqdm/tqdm/issues/510
+        # return [ self.spheno.run(d) for d in tqdm(dataset) ]
+        return [ self.spheno.run(d) for d in dataset ]
 
     def submit(self,w=None):
-        w = os.cpu_count() if not w else w
-        chunks = int(self.numparas/w)
-        self.scanset = [self.scanset[i:i+chunks] for i in range(0, self.numparas, chunks)]
+        w = 2*os.cpu_count() if not w else w
+        if not self.scanset:
+            self.build()
+        chunksize = min(int(self.numparas/w),1000)
+        chunks = range(0, self.numparas, chunksize)
+        logging.info('Splitting dataset into %d chunks.' % len(chunks))
+        logging.info('Will work on %d chunks in parallel.' % w)
         with ThreadPoolExecutor(w) as executor:
-            self.results = json_normalize(json.loads(json.dumps(
-                            [ r for rset in executor.map(self._run, self.scanset) for r in rset ]
-                            )))
-        self.scanset = [ s for sset in self.scanset for s in sset ]
-
-    def submit2(self,w):
-        with ThreadPoolExecutor(w) as executor:
-            self.results = json_normalize(json.loads(json.dumps(list(executor.map(self.runner.run, self.scanset)))))
+            futures = [ executor.submit(self._run, self.scanset[i:i+chunksize]) for i in chunks ]
+            progresser = tqdm(as_completed(futures), total=len(chunks), unit = 'chunk')
+            self.results = [ k for r in progresser for k in r.result() ]
+        self.results = json_normalize(json.loads(json.dumps(self.results)))
 
     def save(self, filename='store.hdf', path='results'):
         store = HDFStore(filename)
