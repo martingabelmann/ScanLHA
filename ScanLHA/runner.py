@@ -3,6 +3,7 @@ import logging
 from subprocess import Popen, STDOUT, PIPE
 from .slha import parseSLHA
 from random import randrange
+from numpy import nan
 import os
 
 class Runner():
@@ -11,8 +12,9 @@ class Runner():
         self.timeout = conf.get('timeout', 10)
         self.tpl = tpl
         self.blocks = blocks
-        if 'slhadir' not in conf:
-            self.config['slhadir'] = '/tmp/slha'
+        if 'tmpfs' not in conf:
+            self.config['tmpfs'] = '/tmp/'
+        self.config['slhadir'] = self.config['tmpfs'] + 'slha/'
         if not os.path.exists(self.config['slhadir']):
             os.makedirs(self.config['slhadir'])
         if 'binary' not in self.config:
@@ -39,6 +41,14 @@ class Runner():
 
         proc = Popen([self.config['binary'], fin, fout], stderr=STDOUT, stdout=PIPE)
         pipe = proc.communicate(timeout=self.timeout)
+        if os.path.isfile(fout):
+            slha = parseSLHA(fout, self.blocks)
+            if not self.config.get('keep_slha', False):
+                os.remove(fout)
+                os.remove(fin)
+            return slha
+        if not self.config.get('keep_log', False):
+            return { 'log': nan }
         log = ''
         for p in pipe:
             if not p:
@@ -49,11 +59,6 @@ class Runner():
                             p.decode('utf8').strip()
                         )
                 logf.write(log)
-        if os.path.isfile(fout):
-            slha = parseSLHA(fout, self.blocks)
-            if self.config.get('keep_slha', False):
-                os.remove(fout)
-                os.remove(fin)
-            return slha
-        elif os.path.isfile(flog):
+        if os.path.isfile(flog):
             logging.debug(log)
+        return { 'log': flog }
