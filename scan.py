@@ -1,23 +1,26 @@
+
 import sps
 import matplotlib
 from pandas import read_hdf
 from collections import OrderedDict
+from scipy.interpolate import interp1d
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 # Definitions
 MINPARID = OrderedDict()
 MINPARID['NMSSM'] = { 'At':1, 'LambdaS':2, 'MSUSY':3, 'TanBeta':4}
+MINPARID['NMSSMLO'] = { 'At':1, 'LambdaS':2, 'MSUSY':3, 'TanBeta':4}
 MINPARID['MSSM']  = { 'At':1, 'MSUSY':2, 'TanBeta':3 }
-# MINPARID['NMSSMNoSq'] = { 'LambdaS':1, 'TanBeta':2,  'MSUSY':3}
 
-MARKER = { 'NMSSM': 'o', 'MSSM': '+'}
+MARKER = { 'NMSSM': 'o', 'NMSSMLO': '+'}
 
 MINPARVAL = {
-        'At': {'value': 0},
-        'TanBeta': { 'values': [1, 4] },
+        # 'At': {'values': ["{3MINPAR}/{4MINPAR}", 0, "3.5*{3MINPAR}/{4MINPAR}"] },
+        'At': { 'value': 0 },
+        'TanBeta': { 'values': [1,4] },
         'MSUSY': { 'scan': [1e3, 1e16, 50], 'distribution': 'geom' },
-        'LambdaS': { 'values': [0.3, 0.2, 0] }
+        'LambdaS': { 'values': [0.1,0.3,0.4] }
         }
 
 LATEX = {
@@ -27,32 +30,24 @@ LATEX = {
         "LambdaS": "\lambda_s"
         }
 
-
-READINMEMORY = True
-
 HDFSTORE = 'scans/MSSMvsNMSSM/store.h5'
 
 # Load default config
 c = sps.Config('config.yml')
 
 # Helper functions
-def setMINPAR(c, model, para, value):
-    paraid = MINPARID[model][para]
-    line = { 'parameter': para, 'id': paraid }
-    line.update(value)
-    c.setLine('MINPAR', line)
-
-def setbinary(c,model):
-    c['spheno']['binary'] = '../bin/SPheno' + model
-
 def runscan(c, model):
     c.setBlock('MINPAR') # clear previous entries
     for para,value in MINPARVAL.items():
         if para not in MINPARID[model]:
             print('Parameter {} skipped for {}'.format(para, model))
             continue
-        setMINPAR(c, model, para, value)
-    setbinary(c,model)
+        paraid = MINPARID[model][para]
+        line = { 'parameter': para, 'id': paraid }
+        line.update(value)
+        c.setLine('MINPAR', line)
+
+    c['spheno']['binary'] = '../bin/SPheno' + model
     print('scanning ' + model + ' ...')
     scan = sps.Scan(c,getblocks=[])
     scan.build()
@@ -80,7 +75,7 @@ if skip == 'r' or skip == '':
     [ results.put(model, runscan(c,model)) for model in MINPARID.keys() ]
     results.close()
 
-if READINMEMORY or skip == 's':
+if skip == 's':
     # read into RAM to speed up the plots
     results = { model : read_hdf(HDFSTORE, model) for model in MINPARID.keys() }
 
@@ -101,7 +96,8 @@ for tanb in MINPARVAL['TanBeta']['values']:
         if 'LambdaS' not in minpar.keys():
             mhmsusy = getSubPlot(model,{'TanBeta': tanb})
             Label = model
-            ax.plot(mhmsusy[0],mhmsusy[1], label=Label, linewidth=2, c='black')
+            mhms = interp1d(mhmsusy[0],mhmsusy[1])
+            ax.plot(mhmsusy[0],mhms(mhmsusy[0]), label=Label, c='black')
             continue
         for lams in MINPARVAL['LambdaS']['values']:
             Label = model + ': '
