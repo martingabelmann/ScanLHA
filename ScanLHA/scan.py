@@ -78,7 +78,7 @@ class Scan():
     def _run(self, dataset):
         # this is still buggy: https://github.com/tqdm/tqdm/issues/510
         # return [ self.spheno.run(d) for d in tqdm(dataset) ]
-        return [ self.spheno.run(d) for d in dataset ]
+        return [ self.runner.run(d) for d in dataset ]
 
     def submit(self,w=None):
         w = 2*os.cpu_count() if not w else w

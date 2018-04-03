@@ -38,9 +38,10 @@ class Runner():
                 inputf.write(self.tpl.format_map(params))
             except KeyError:
                 logging.error("Could not substitute ", params)
+                return { 'log': 0 }
 
         proc = Popen([self.config['binary'], fin, fout], stderr=STDOUT, stdout=PIPE)
-        pipe = proc.communicate(timeout=self.timeout)
+        stdout, stderr = proc.communicate(timeout=self.timeout)
         if os.path.isfile(fout):
             slha = parseSLHA(fout, self.blocks)
             if not self.config.get('keep_slha', False):
@@ -49,16 +50,14 @@ class Runner():
             return slha
         if not self.config.get('keep_log', False):
             return { 'log': nan }
-        log = ''
-        for p in pipe:
-            if not p:
-                continue
+        if stdout or stderr:
+            log = 'parameters: %s\n' % params
             with open(flog, 'w') as logf:
-                log += 'parameters: {} \nmessage: {}\n\n'.format(
-                            str(params),
-                            p.decode('utf8').strip()
+                log += 'stdout: {}\nstderr: {}\n\n'.format(
+                            stdout.decode('utf8').strip(),
+                            stderr.decode('utf8').strip()
                         )
                 logf.write(log)
         if os.path.isfile(flog):
             logging.debug(log)
-        return { 'log': flog }
+            return { 'log': flog }
