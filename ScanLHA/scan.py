@@ -6,6 +6,7 @@ from numpy import linspace, prod
 from concurrent.futures import ProcessPoolExecutor as Executor
 from concurrent.futures import as_completed
 from tqdm import tqdm
+from math import *
 from itertools import product
 from pandas.io.json import json_normalize
 from pandas import HDFStore
