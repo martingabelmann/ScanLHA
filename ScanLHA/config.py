@@ -15,7 +15,6 @@ yaml.add_implicit_resolver(
     |\\.(?:nan|NaN|NAN))$''', re.X),
     list(u'-+0123456789.'))
 
-
 class Config(dict):
     def __init__(self,src):
         self.src = src
@@ -25,7 +24,25 @@ class Config(dict):
                 'geom': geomspace,
                 'arange': arange
                 }
+        self.parameters = {} # directly access a block item via 'parameter'
         self.load()
+
+    def __getitem__(self, key):
+        """ Access BLOCKs and BLOCK items (whole lines or values) """
+        if key in self.keys():
+            return self.get(key)
+        if self.getBlock(key):
+            return self.getBlock(key)
+        if key in self.parameters:
+            return self.parameters[key]
+        dots = key.split('.') # access line e.g. via Config["MINPAR.1"]
+        if len(dots) == 2:
+            return self.getLine(dots[0], dots[1])
+        if len(dots) == 3: # or value/scan/values via Config["MINPAR.values.1"]
+            line = self.getLine(dots[0], int(dots[2]))
+            if line and dots[1] in line.keys():
+                return line.get(dots[1])
+        raise KeyError('No valid config parameter: {}'.format(key))
 
     def load(self):
         try:
@@ -50,7 +67,7 @@ class Config(dict):
     def getLine(self, block, id):
         b = self.getBlock(block)
         if not b:
-            logging.error('Block {} not present in config.' % block)
+            logging.error('Block {} not present in config.'.format(block))
             return
         lines = b['lines']
         linepos = [i for i,l in enumerate(lines) if 'id' in l and l['id'] == id]
@@ -64,6 +81,7 @@ class Config(dict):
             b['lines'] = lines
         else:
             self['blocks'].append({'block':block, 'lines': lines})
+        return self.validate()
 
     def setLine(self, block, line):
         # add scan-parameter to config (if not already)
@@ -85,15 +103,27 @@ class Config(dict):
             logging.error("No 'blocks' section in config ")
             ok = False
         # check for double entries
-        seen = []
+        lines_seen = []
+        self.parameters = {}
         for block in self['blocks']:
+            if block['block'].count('.') > 0:
+                logging.error('Block {} contains forbiddeni character "."!'.format(block['block']))
+                ok = False
             for line in block['lines']:
                 if 'id' not in line:
                     logging.error('No ID set for line entry!')
                     ok = False
-                if [block['block'],line['id']] in seen:
+                if [block['block'],line['id']] in lines_seen:
                     logging.error('Parameter {} in block {} set twice! Taking the first occurence.'.format(line['id'], block['block']))
                     ok = False
+                if 'parameter' not in line:
+                    line['parameter'] = '{}.{}'.format(block['block'],line['id'])
+                elif line['parameter'] in self.parameters.keys():
+                        para = line['parameter'] + '1'
+                        logging.error('Parameter {} set twice! Renaming to {}.'.format(line['parameter'], para))
+                        line['parameter'] = para
+                        ok = False
+                self.parameters[line['parameter']] = line
                 if 'value' in line:
                     try:
                         float(line['value'])
@@ -106,5 +136,7 @@ class Config(dict):
                 if 'scan' in line and type(line['scan']) != list and len(line['scan']) < 2:
                     logging.error("'scan' must be a nonemtpy list ({}, {}).".format(block['block'], line['id']))
                     ok = False
-                seen.append([block['block'], line['id']])
+                if 'latex' not in line:
+                    line['latex'] = line['parameter']
+                lines_seen.append([block['block'], line['id']])
         return ok

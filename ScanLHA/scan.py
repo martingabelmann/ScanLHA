@@ -3,7 +3,8 @@ import logging
 from collections import ChainMap
 import os
 from numpy import linspace, prod
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor as Executor
+from concurrent.futures import as_completed
 from tqdm import tqdm
 from itertools import product
 from pandas.io.json import json_normalize
@@ -62,15 +63,15 @@ class Scan():
         return { p : eval(str(v).format_map(dict(ChainMap(*param_tuple)))) for p,v in dict(ChainMap(*param_tuple)).items() }
 
     def build(self,num_workers=4):
+        if not self.config.validate():
+            return
         values = []
-        for block in self.config['blocks']:
-            for line in block['lines']:
-                if 'values' in line:
-                    values.append([{str(line['id']) + block['block']: num} for num in line['values']])
+        for parameter,line in self.config.parameters.items():
+            if 'values' in line:
+                values.append([{str(parameter): num} for num in line['values']])
         self.numparas = prod([len(v) for v in values])
-        logging.info('Build all %d parameter poins.' % self.numparas)
-        self.scanset = [ self._substitute(s) for s in list(product(*values)) ]
-
+        logging.info('Build all %d parameter points.' % self.numparas)
+        self.scanset = [ self._substitute(s) for s in product(*values) ]
         if self.scanset:
             return self.numparas
         return
@@ -81,17 +82,17 @@ class Scan():
         return [ self.runner.run(d) for d in dataset ]
 
     def submit(self,w=None):
-        w = 2*os.cpu_count() if not w else w
+        w = os.cpu_count() if not w else w
         if not self.scanset:
             self.build()
         chunksize = min(int(self.numparas/w),1000)
         chunks = range(0, self.numparas, chunksize)
         logging.info('Splitting dataset into %d chunks.' % len(chunks))
         logging.info('Will work on %d chunks in parallel.' % w)
-        with ThreadPoolExecutor(w) as executor:
+        with Executor(w) as executor:
             futures = [ executor.submit(self._run, self.scanset[i:i+chunksize]) for i in chunks ]
             progresser = tqdm(as_completed(futures), total=len(chunks), unit = 'chunk')
-            self.results = [ k for r in progresser for k in r.result() ]
+            self.results = [ k for r in progresser for k in r.result() if k ]
         self.results = json_normalize(json.loads(json.dumps(self.results)))
 
     def save(self, filename='store.hdf', path='results'):
