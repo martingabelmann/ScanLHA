@@ -60,8 +60,14 @@ class Scan():
         # update the slha template with new config
         self.template = genSLHA(self.config['blocks'])
 
-    def _substitute(self, param_tuple):
-        return { p : eval(str(v).format_map(dict(ChainMap(*param_tuple)))) for p,v in dict(ChainMap(*param_tuple)).items() }
+    def _substitute(self, param_dict):
+        print(param_dict)
+        subst = { p : str(v).format_map(param_dict) for p,v in param_dict.items() }
+        print(subst)
+        if param_dict == subst:
+            return { p : eval(v) for p,v in subst.items() }
+        else:
+            return self._substitute(subst)
 
     def build(self,num_workers=4):
         if not self.config.validate():
@@ -72,7 +78,7 @@ class Scan():
                 values.append([{str(parameter): num} for num in line['values']])
         self.numparas = prod([len(v) for v in values])
         logging.info('Build all %d parameter points.' % self.numparas)
-        self.scanset = [ self._substitute(s) for s in product(*values) ]
+        self.scanset = [ self._substitute(dict(ChainMap(*s))) for s in product(*values) ]
         if self.scanset:
             return self.numparas
         return
@@ -88,6 +94,7 @@ class Scan():
             self.build()
         chunksize = min(int(self.numparas/w),1000)
         chunks = range(0, self.numparas, chunksize)
+        logging.info('Running on host {}.'.format(os.getenv('HOSTNAME')))
         logging.info('Splitting dataset into %d chunks.' % len(chunks))
         logging.info('Will work on %d chunks in parallel.' % w)
         with Executor(w) as executor:
