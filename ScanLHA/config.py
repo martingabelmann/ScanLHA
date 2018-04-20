@@ -15,9 +15,14 @@ yaml.add_implicit_resolver(
     |\\.(?:nan|NaN|NAN))$''', re.X),
     list(u'-+0123456789.'))
 
+def intersect(list1,list2):
+    return list(set(list1.keys()) & set(list2.keys()))
+
 class Config(dict):
     def __init__(self,src):
         self.src = src
+        self['runner'] = {}
+        self['blocks'] = []
         self.distribution = {
                 'linear': linspace,
                 'log': logspace,
@@ -49,7 +54,7 @@ class Config(dict):
         try:
             with open(src, 'r') as c:
                 new = yaml.safe_load(c)
-                for i in list(set(new.keys()) & set(self.keys())):
+                for i in intersect(new.keys(), self.keys()):
                     logging.warning('Overwriting config {}.'.format(i))
                 self.update(new)
                 if not self.validate():
@@ -61,6 +66,16 @@ class Config(dict):
         except Exception as e:
             logging.error("failed to load config file " + src)
             logging.error(str(e))
+
+    def append(self, c):
+        self['runner'].update(c['runner'])
+        for b in c['blocks']:
+            if not self.getBlock(b['block']):
+                self.setBlock(b['block'], b['lines'])
+            else:
+                for l in b['lines']:
+                    self.setLine(b['block'], l)
+        return self.validate()
 
     def getBlock(self, block):
         blockpos = [i for i,b in enumerate(self['blocks']) if b['block'] == block]
