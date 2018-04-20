@@ -10,7 +10,12 @@ def genSLHA(blocks):
         for data in block['lines']:
             data = defaultdict(str,data)
             if 'scan' in data or 'values' in data:
-                data['value'] = '{%' + str(data['id']) + block['block'] + '%}'
+                try:
+                    para = data['parameter']
+                except KeyError:
+                    logging.info('Using {}.{} as template parameter.'.format(block, data['id']))
+                    para = '{}.{}'.format(block,data['id'])
+                data['value'] = '{%' + para + '%}'
             out += '{id} {value} #{parameter} {comment}\n'.format_map(data)
     return out
 

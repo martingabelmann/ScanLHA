@@ -12,16 +12,16 @@ from pandas.io.json import json_normalize
 from pandas import HDFStore
 import json
 from .slha import genSLHA
-from .runner import Runner
+from .runner import RUNNERS
 
 logging.getLogger().setLevel(logging.INFO)
 
 class Scan():
-    def __init__(self, c, getblocks=[]):
+    def __init__(self, c, runner='SLHA'):
         self.config = c
-        self.template = genSLHA(c['blocks'])
-        self.getblocks = getblocks
-        self.runner = Runner(c['runner'], self.template, self.getblocks)
+        self.config['runner']['template'] = genSLHA(c['blocks'])
+        self.getblocks = self.config.get('getblocks', [])
+        self.runner = RUNNERS[runner](c['runner'])
         self.scanset = []
         scan = None
         for block in c['blocks']:
@@ -61,9 +61,7 @@ class Scan():
         self.template = genSLHA(self.config['blocks'])
 
     def _substitute(self, param_dict):
-        print(param_dict)
         subst = { p : str(v).format_map(param_dict) for p,v in param_dict.items() }
-        print(subst)
         if param_dict == subst:
             return { p : eval(v) for p,v in subst.items() }
         else:
