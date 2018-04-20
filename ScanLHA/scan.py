@@ -101,10 +101,15 @@ class Scan():
                 progresser = tqdm(as_completed(futures), total=len(chunks), unit = 'chunk')
                 self.results = [ k for r in progresser for k in r.result() if k ]
         else:
-            self.results = [ self.runner.run(d) for d in tqdm(dataset) ]
+            self.results = [ self.runner.run(d) for d in tqdm(self.scanset) ]
         self.results = json_normalize(json.loads(json.dumps(self.results)))
 
     def save(self, filename='store.hdf', path='results'):
+        print('Saving to {} ({})'.format(filename,path))
+        if path == 'config':
+            logging.error('Cant use "config" as path, using "config2" instead.i')
+            path = "config2"
         store = HDFStore(filename)
         store[path] = self.results
+        store.get_storer(path).attrs.config = dict(self.config)
         store.close()
