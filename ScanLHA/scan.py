@@ -90,15 +90,18 @@ class Scan():
         w = os.cpu_count() if not w else w
         if not self.scanset:
             self.build()
-        chunksize = min(int(self.numparas/w),1000)
-        chunks = range(0, self.numparas, chunksize)
-        logging.info('Running on host {}.'.format(os.getenv('HOSTNAME')))
-        logging.info('Splitting dataset into %d chunks.' % len(chunks))
-        logging.info('Will work on %d chunks in parallel.' % w)
-        with Executor(w) as executor:
-            futures = [ executor.submit(self._run, self.scanset[i:i+chunksize]) for i in chunks ]
-            progresser = tqdm(as_completed(futures), total=len(chunks), unit = 'chunk')
-            self.results = [ k for r in progresser for k in r.result() if k ]
+        if w != 1:
+            chunksize = min(int(self.numparas/w),1000)
+            chunks = range(0, self.numparas, chunksize)
+            logging.info('Running on host {}.'.format(os.getenv('HOSTNAME')))
+            logging.info('Splitting dataset into %d chunks.' % len(chunks))
+            logging.info('Will work on %d chunks in parallel.' % w)
+            with Executor(w) as executor:
+                futures = [ executor.submit(self._run, self.scanset[i:i+chunksize]) for i in chunks ]
+                progresser = tqdm(as_completed(futures), total=len(chunks), unit = 'chunk')
+                self.results = [ k for r in progresser for k in r.result() if k ]
+        else:
+            self.results = [ self.runner.run(d) for d in tqdm(dataset) ]
         self.results = json_normalize(json.loads(json.dumps(self.results)))
 
     def save(self, filename='store.hdf', path='results'):

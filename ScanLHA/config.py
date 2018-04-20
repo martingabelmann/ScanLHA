@@ -16,7 +16,7 @@ yaml.add_implicit_resolver(
     list(u'-+0123456789.'))
 
 def intersect(list1,list2):
-    return list(set(list1.keys()) & set(list2.keys()))
+    return list(set(list1) & set(list2))
 
 class Config(dict):
     def __init__(self,src):
@@ -55,7 +55,7 @@ class Config(dict):
             with open(src, 'r') as c:
                 new = yaml.safe_load(c)
                 for i in intersect(new.keys(), self.keys()):
-                    logging.warning('Overwriting config {}.'.format(i))
+                    logging.info('Overwriting config "{}".'.format(i))
                 self.update(new)
                 if not self.validate():
                     logging.error('Errorenous config file.')
