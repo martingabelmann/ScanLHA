@@ -1,6 +1,6 @@
 from collections import defaultdict
 import logging
-from subprocess import Popen, STDOUT, PIPE
+from subprocess import Popen, STDOUT, PIPE, TimeoutExpired
 from .slha import parseSLHA
 from random import randrange,randint
 import os
@@ -62,7 +62,11 @@ class SLHARunner(BaseRunner):
                 return { 'log': err }
 
         proc = Popen([self.config['binary'], fin, fout], stderr=STDOUT, stdout=PIPE)
-        stdout, stderr = proc.communicate(timeout=self.timeout)
+        try:
+            stdout, stderr = proc.communicate(timeout=self.timeout)
+        except TimeoutExpired:
+            stdout = ''
+            stderr = 'Timeout'
         if os.path.isfile(fout):
             slha = parseSLHA(fout, self.blocks)
             if self.config.get('remove_slha', True):
