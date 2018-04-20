@@ -44,18 +44,22 @@ class Config(dict):
                 return line.get(dots[1])
         raise KeyError('No valid config parameter: {}'.format(key))
 
-    def load(self):
+    def load(self, src = None):
+        src = self.src if not src else src
         try:
-            with open(self.src, 'r') as c:
-                self.update(yaml.safe_load(c))
+            with open(src, 'r') as c:
+                new = yaml.safe_load(c)
+                for i in list(set(new.keys()) & set(self.keys())):
+                    logging.warning('Overwriting config {}.'.format(i))
+                self.update(new)
                 if not self.validate():
                     logging.error('Errorenous config file.')
                     exit(1)
         except FileNotFoundError:
-            logging.error('File {} not found.' % self.src)
+            logging.error('File {} not found.' % src)
             return -2
         except Exception as e:
-            logging.error("failed to load config file " + self.src)
+            logging.error("failed to load config file " + src)
             logging.error(str(e))
 
     def getBlock(self, block):
