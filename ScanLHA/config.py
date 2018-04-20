@@ -67,6 +67,11 @@ class Config(dict):
             logging.error("failed to load config file " + src)
             logging.error(str(e))
 
+    def save(self, dest = None):
+        dest = self.src if not dest else dest
+        with open(dest, 'w') as f:
+            f.write(yaml.dump(self))
+
     def append(self, c):
         self['runner'].update(c['runner'])
         for b in c['blocks']:
