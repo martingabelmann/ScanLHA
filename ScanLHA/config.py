@@ -73,7 +73,11 @@ class Config(dict):
             f.write(yaml.dump(self))
 
     def append(self, c):
-        self['runner'].update(c['runner'])
+        for b in ['runner', 'contourplot', 'xyplot']:
+            if b in c and b in self:
+                self[b].update(c[b])
+            elif b in c and b not in self:
+                self[b] = c[b]
         for b in c['blocks']:
             if not self.getBlock(b['block']):
                 self.setBlock(b['block'], b['lines'])

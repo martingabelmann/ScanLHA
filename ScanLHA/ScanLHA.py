@@ -35,6 +35,10 @@ LATEX['TanBeta'] = "\\tan\\beta"
 
 CONF = None
 
+class ScanLHA():
+    def __init__(self, scan, c='configs/SPheno.yml', runner='SLHA'):
+        self.config = Config(c)
+        self.scan = Scan(c, runner)
 
 def blockfrompara(para,blocks):
     block = [ k for k,v in blocks.items() if para in v ]
@@ -79,7 +83,6 @@ def runScan(model,HDFSTORE='store.h5',binary=None, getblocks=[], threads=None):
     print('scanning ' + model + ' ...')
     scan = Scan(c)
     scan.submit(threads)
-    print('Saving to ' + HDFSTORE)
     scan.save(filename=HDFSTORE, path=model)
     if 'log' in scan.results:
         failed = len([ r for r in scan.results['log'] if type(r) == str ])
