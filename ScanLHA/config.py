@@ -1,4 +1,5 @@
 from numpy import linspace, logspace, geomspace, arange
+from numpy.random import uniform, normal
 import logging
 import re
 import yaml
@@ -27,7 +28,9 @@ class Config(dict):
                 'linear': linspace,
                 'log': logspace,
                 'geom': geomspace,
-                'arange': arange
+                'arange': arange,
+                'uniform': uniform,
+                'normal': normal
                 }
         self.parameters = {} # directly access a block item via 'parameter'
         self.load()
