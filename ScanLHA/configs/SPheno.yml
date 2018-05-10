@@ -4,9 +4,12 @@
 # MakeConfig.m /users/tp/marting/FeynTools/SARAH/Models/SM/SPheno.m
 
 
-spheno:
-  binary: '../bin/SPhenoMSSM'
-  slhadir: '/dev/shm/slha'
+runner:
+  binary: '../../bin/SPheno'
+  tmpfs: '/dev/shm/slha/'
+  keep_log: False
+  logfile: False
+  remove_slha: True
 
 blocks:
   - block: MODSEL
@@ -35,14 +38,16 @@ blocks:
       - id: 12
         value: 1.00000000E-04
         comment: 'write only branching ratios larger than this value'
-      - {id: 13, value: 1}
+      - {id: 13, value: 0}
       - {id: 38, value: 1}
       - {id: 51, value: 0}
       - {id: 55, value: 1}
+      - {id: 57, value: 0}
       - {id: 66, value: 1}
       - {id: 67, value: 2}
       - {id: 75, value: 0}
       - {id: 76, value: 0}
+      - {id: 77, value: 0}
+      - {id: 78, value: 0}
+      - {id: 79, value: 0}
       - {id: 530, value: 0}
-  - block: MINPAR
-    lines: []
