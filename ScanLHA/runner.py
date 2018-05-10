@@ -33,14 +33,34 @@ class BaseRunner():
     def cleanup(self):
         if not self.config.get('cleanup', False):
             return
-        self.results = {}
-        del self.results
         try:
             logging.info('Removing temporary directory {}'.format(self.config['rundir']))
             os.chdir('/')
             rmtree(self.config['rundir'])
         except FileNotFoundError:
             logging.error('Directory {} does not exist.'.format(self.config['rundir']))
+        except:
+            logging.error('Could not remove directory {}.'.format(self.config['rundir']))
+
+    def __del__(self):
+        self.cleanup()
+
+    def constraints(self, result):
+        if not self.config.get('constraints', False):
+            return result
+        try:
+            if not all(map(eval, self.config['constraints'])):
+                raise(ValueError)
+            return result
+        except KeyError as e:
+            return { 'log': 'invalid constraint: {}'.format(e) }
+        except ValueError:
+            return
+        except Exception as e:
+            return {'log' : str(e)}
+
+    def run(self, params):
+        logging.error("run method not implemented!")
 
 class SLHARunner(BaseRunner):
     def __init__(self,conf):

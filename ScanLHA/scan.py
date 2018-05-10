@@ -28,7 +28,7 @@ class Scan():
         self.config = c
         self.config['runner']['template'] = genSLHA(c['blocks'])
         self.getblocks = self.config.get('getblocks', [])
-        self.runner = RUNNERS[runner](c['runner'])
+        self.runner = RUNNERS[runner]
         self.scanset = []
         scan = None
         for block in c['blocks']:
@@ -83,10 +83,11 @@ class Scan():
             return self.numparas
         return
 
-    def _run(self, dataset):
+    def scan(self, dataset):
         # this is still buggy: https://github.com/tqdm/tqdm/issues/510
-        # return [ self.spheno.run(d) for d in tqdm(dataset) ]
-        return [ self.runner.run(d) for d in dataset ]
+        # res = [ runner.run(d) for d in tqdm(dataset) ]
+        runner = self.runner(self.config['runner'])
+        return [ runner.run(d) for d in dataset ]
 
     def submit(self,w=None):
         w = os.cpu_count() if not w else w
@@ -99,11 +100,12 @@ class Scan():
             logging.info('Splitting dataset into %d chunks.' % len(chunks))
             logging.info('Will work on %d chunks in parallel.' % w)
             with Executor(w) as executor:
-                futures = [ executor.submit(self._run, self.scanset[i:i+chunksize]) for i in chunks ]
+                futures = [ executor.submit(self.scan, self.scanset[i:i+chunksize]) for i in chunks ]
                 progresser = tqdm(as_completed(futures), total=len(chunks), unit = 'chunk')
                 self.results = [ k for r in progresser for k in r.result() if k ]
         else:
-            self.results = [ self.runner.run(d) for d in tqdm(self.scanset) ]
+            runner = self.runner(self.config['runner'])
+            self.results = [ runner.run(d) for d in tqdm(self.scanset) ]
         self.results = json_normalize(json.loads(json.dumps(self.results)))
 
     def save(self, filename='store.hdf', path='results'):
@@ -122,22 +124,11 @@ class RandomScan():
         self.numparas = eval(str(c['runner']['numparas']))
         self.config['runner']['template'] = genSLHA(c['blocks'])
         self.getblocks = self.config.get('getblocks', [])
-        self.runner = RUNNERS[runner](c['runner'])
+        self.runner = RUNNERS[runner]
         self.seed = round(time())
         seed(self.seed)
         self.randoms = { p : [eval(str(k)) for k in v['random']] for p,v in c.parameters.items() if 'random' in v }
         self.dependent = { p : v['value'] for p,v in c.parameters.items() if v.get('dependent',False) and 'value' in v }
-
-    def _run(self, dataset):
-        result = self.runner.run(dataset)
-        try:
-            if not all(map(eval, self.config['runner']['constraints'])):
-                raise(ValueError)
-            return result
-        except (KeyError,ValueError):
-            return
-        except Exception as e:
-            return {'log' : str(e)}
 
     def generate(self):
         dataset = { p : v for p,v in self.dependent.items() }
@@ -146,10 +137,11 @@ class RandomScan():
 
     def scan(self, numparas, pos=0):
         numresults = 0
+        runner = self.runner(c['runner'])
         results = []
         with tqdm(total=numparas, unit='point', position=pos) as bar:
             while numresults < numparas:
-                result = self._run(self.generate())
+                result = runner.run(self.generate())
                 if result:
                     results.append(result)
                     numresults += 1
