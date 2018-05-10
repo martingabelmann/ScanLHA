@@ -58,7 +58,7 @@ class Config(dict):
             with open(src, 'r') as c:
                 new = yaml.safe_load(c)
                 for i in intersect(new.keys(), self.keys()):
-                    logging.info('Overwriting config "{}".'.format(i))
+                    logging.debug('Overwriting config "{}".'.format(i))
                 self.update(new)
                 if not self.validate():
                     logging.error('Errorenous config file.')
@@ -121,10 +121,10 @@ class Config(dict):
         if not b:
             return
         if not linepos:
-            logging.info('Appending new line with ID %d.' % line['id'])
+            logging.debug('Appending new line with ID %d.' % line['id'])
             b['lines'].append(line)
         else:
-            logging.info('Updating line with ID %d.' % line['id'])
+            logging.debug('Updating line with ID %d.' % line['id'])
             b['lines'][linepos[0]] = line
         return self.validate()
 

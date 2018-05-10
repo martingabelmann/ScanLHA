@@ -6,15 +6,22 @@ from numpy import linspace, prod
 from concurrent.futures import ProcessPoolExecutor as Executor
 from concurrent.futures import as_completed
 from tqdm import tqdm
-from math import *
+from math import * # noqa: E403
 from itertools import product
 from pandas.io.json import json_normalize
 from pandas import HDFStore
 import json
 from .slha import genSLHA
 from .runner import RUNNERS
+from numpy.random import seed, uniform
+from time import time
 
-logging.getLogger().setLevel(logging.INFO)
+def substitute(param_dict):
+    subst = { p : str(v).format_map(param_dict) for p,v in param_dict.items() }
+    if param_dict == subst:
+        return { p : eval(v) for p,v in subst.items() }
+    else:
+        return substitute(subst)
 
 class Scan():
     def __init__(self, c, runner='SLHA'):
@@ -33,9 +40,9 @@ class Scan():
                     self.addScanValues(block['block'], line)
                     scan = True
         if not scan:
-            logging.warning("No scan parameters defined in config!")
-            logging.warning("Register a scan range with addScanRange(<block>, {'id': <para-id>, 'scan': [<start>,<end>,<stepsize>]})")
-            logging.warning("Register a list of scan values with  addScanValues(<block>,{'id': <para-id>, 'values': [1,3,6,...])")
+            logging.info("No scan parameters defined in config!")
+            logging.info("Register a scan range with addScanRange(<block>, {'id': <para-id>, 'scan': [<start>,<end>,<stepsize>]})")
+            logging.info("Register a list of scan values with  addScanValues(<block>,{'id': <para-id>, 'values': [1,3,6,...])")
 
     def addScanRange(self, block, line):
         if 'id' not in line:
@@ -58,14 +65,7 @@ class Scan():
             return
         self.config.setLine(block, line)
         # update the slha template with new config
-        self.template = genSLHA(self.config['blocks'])
-
-    def _substitute(self, param_dict):
-        subst = { p : str(v).format_map(param_dict) for p,v in param_dict.items() }
-        if param_dict == subst:
-            return { p : eval(v) for p,v in subst.items() }
-        else:
-            return self._substitute(subst)
+        self.config['runner']['template'] = genSLHA(self.config['blocks'])
 
     def build(self,num_workers=4):
         if not self.config.validate():
@@ -74,9 +74,11 @@ class Scan():
         for parameter,line in self.config.parameters.items():
             if 'values' in line:
                 values.append([{str(parameter): num} for num in line['values']])
+            if 'dependent' in line and 'value' in line:
+                valuse.append([line['parameter'], line['value']])
         self.numparas = prod([len(v) for v in values])
         logging.info('Build all %d parameter points.' % self.numparas)
-        self.scanset = [ self._substitute(dict(ChainMap(*s))) for s in product(*values) ]
+        self.scanset = [ substitute(dict(ChainMap(*s))) for s in product(*values) ]
         if self.scanset:
             return self.numparas
         return
@@ -112,4 +114,68 @@ class Scan():
         store = HDFStore(filename)
         store[path] = self.results
         store.get_storer(path).attrs.config = dict(self.config)
+        store.close()
+
+class RandomScan():
+    def __init__(self, c, runner='SLHA'):
+        self.config = c
+        self.numparas = eval(str(c['runner']['numparas']))
+        self.config['runner']['template'] = genSLHA(c['blocks'])
+        self.getblocks = self.config.get('getblocks', [])
+        self.runner = RUNNERS[runner](c['runner'])
+        self.seed = round(time())
+        seed(self.seed)
+        self.randoms = { p : [eval(str(k)) for k in v['random']] for p,v in c.parameters.items() if 'random' in v }
+        self.dependent = { p : v['value'] for p,v in c.parameters.items() if v.get('dependent',False) and 'value' in v }
+
+    def _run(self, dataset):
+        result = self.runner.run(dataset)
+        try:
+            if not all(map(eval, self.config['runner']['constraints'])):
+                raise(ValueError)
+            return result
+        except (KeyError,ValueError):
+            return
+        except Exception as e:
+            return {'log' : str(e)}
+
+    def generate(self):
+        dataset = { p : v for p,v in self.dependent.items() }
+        [ dataset.update({ p : uniform(*v)}) for p,v in self.randoms.items() ]
+        return substitute(dataset)
+
+    def scan(self, numparas, pos=0):
+        numresults = 0
+        results = []
+        with tqdm(total=numparas, unit='point', position=pos) as bar:
+            while numresults < numparas:
+                result = self._run(self.generate())
+                if result:
+                    results.append(result)
+                    numresults += 1
+                    bar.update(1)
+        return results
+
+    def submit(self,w=None):
+        w = os.cpu_count() if not w else w
+        logging.info('Running on host {}.'.format(os.getenv('HOSTNAME')))
+        logging.info('Will work on %d threads in parallel.' % w)
+        paras_per_thread = int(self.numparas/w)
+        remainder = self.numparas % w
+        numparas = [ paras_per_thread for p in range(w) ]
+        numparas[-1] += remainder
+        with Executor(w) as executor:
+            futures = [ executor.submit(self.scan, j, pos=i) for i,j in enumerate(numparas) ]
+            self.results = [ k for r in as_completed(futures) for k in r.result() if k ]
+        self.results = json_normalize(json.loads(json.dumps(self.results)))
+
+    def save(self, filename='store.hdf', path='results'):
+        print('Saving to {} ({})'.format(filename,path))
+        if path == 'config':
+            logging.error('Cant use "config" as path, using "config2" instead.')
+            path = "config2"
+        store = HDFStore(filename)
+        store[path] = self.results
+        store.get_storer(path).attrs.config = dict(self.config)
+        store.get_storer(path).attrs.seed = self.seed
         store.close()

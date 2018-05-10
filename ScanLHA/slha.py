@@ -9,7 +9,7 @@ def genSLHA(blocks):
         out += 'BLOCK {}\n'.format(block['block'])
         for data in block['lines']:
             data = defaultdict(str,data)
-            if 'scan' in data or 'values' in data:
+            if any(k in ['scan','values','random','dependent'] for k in data):
                 try:
                     para = data['parameter']
                 except KeyError:
