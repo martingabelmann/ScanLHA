@@ -5,6 +5,7 @@ from .slha import parseSLHA
 from random import randrange,randint
 import os
 from shutil import copy2, rmtree
+from tempfile import mkdtemp
 
 class BaseRunner():
     def __init__(self,conf):
@@ -12,7 +13,10 @@ class BaseRunner():
 
     def makedirs(self):
         if 'tmpfs' not in self.config:
-            self.config['tmpfs'] = '/tmp/'
+            if os.path.exists('/dev/shm/'):
+                self.config['tmpfs'] = '/dev/shm/'
+            else:
+                self.config['tmpfs'] = mkdtemp()
         self.config['rundir'] = os.path.join(self.config['tmpfs'], 'run%d' % randint(100,999))
         if not os.path.exists(self.config['rundir']):
             logging.info('Creating temporary directory {}.'.format(self.config['rundir']))
@@ -23,6 +27,8 @@ class BaseRunner():
                 exit(1)
             logging.info('Copying binary {} into temporary directory {}.'.format(self.config['binary'], self.config['rundir']))
             copy2(self.config['binary'], os.path.join(self.config['rundir'],'bin'))
+            logging.info('Changing directory')
+            os.chdir(self.config['rundir'])
 
     def cleanup(self):
         if not self.config.get('cleanup', False):
@@ -31,6 +37,7 @@ class BaseRunner():
         del self.results
         try:
             logging.info('Removing temporary directory {}'.format(self.config['rundir']))
+            os.chdir('/')
             rmtree(self.config['rundir'])
         except FileNotFoundError:
             logging.error('Directory {} does not exist.'.format(self.config['rundir']))
