@@ -19,11 +19,11 @@ def genSLHA(blocks):
             out += '{id} {value} #{parameter} {comment}\n'.format_map(data)
     return out
 
-# recursively convert [1,2,3,4] to {1:{2:{3:4}}
+# recursively convert [1,2,3,4] to {'1':{'2':{'3':4}}
 def list2dict(l):
     if len(l) == 1:
         return l[0]
-    return { l[0] : list2dict(l[1:]) }
+    return { str(l[0]) : list2dict(l[1:]) }
 
 # merge list of nested dicts
 def mergedicts(l, d):
@@ -49,10 +49,23 @@ def parseSLHA(slhafile, blocks=[]):
     except:
         logging.error('Could not parse %s !' % slhafile)
         return -3
-    slha_block = slha['BLOCK']
+    slha_blocks = slha['BLOCK']
     if blocks:
-        slha_block = { b : v for b,v in slha_block.items() if b in blocks }
-    for b,v in slha_block.items():
+        slha_blocks = { b : v for b,v in slha_blocks.items() if b in blocks }
+    for b,v in slha_blocks.items():
         if 'values' in v:
             v['values'] = mergedicts([list2dict(l) for l in v['values']],{})
-    return slha_block
+        if 'info' in v:
+            v['info'] = ''.join(str(i) for i in v['info'])
+
+    if 'DECAY' not in slha:
+        return slha_blocks
+
+    decayblock = 'DECAYS' if 'DECAY' in slha_blocks else 'DECAY'
+    slha_blocks[decayblock] = slha['DECAY']
+    for d,v in slha_blocks[decayblock].items():
+        if 'values' in v:
+            v['values'] = mergedicts([list2dict(list(reversed(l))) for l in v['values']],{})
+        if 'info' in v:
+            v['info'] = ''.join(str(i) for i in v['info']) if len(v['info']) > 1 else v['info'][0]
+    return slha_blocks
