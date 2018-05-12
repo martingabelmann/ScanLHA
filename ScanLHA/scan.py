@@ -105,7 +105,7 @@ class Scan():
         with Executor(w) as executor:
             futures = [ executor.submit(self.scan, self.scanset[i:i+chunksize]) for i in chunks ]
             progresser = tqdm(as_completed(futures), total=len(chunks), unit = 'chunk')
-            self.results = [ r.result for r in progresser ]
+            self.results = [ r.result() for r in progresser ]
         self.results = concat(self.results, ignore_index=True)
 
     def save(self, filename='store.hdf', path='results'):

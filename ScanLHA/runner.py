@@ -56,8 +56,29 @@ class BaseRunner():
             logging.error('invalid constraint: {}'.format(e))
         return
 
+    @staticmethod
+    def removeFile(f):
+        try:
+            os.remove(f)
+        except FileNotFoundError:
+            logging.error('file {} missing?'.format(f))
+
+    def runBinary(self, *args):
+        proc = Popen(list(args), stderr=STDOUT, stdout=PIPE)
+        try:
+            stdout, stderr = proc.communicate(timeout=self.timeout)
+        except TimeoutExpired:
+            stdout = ''
+            stderr = 'Timeout'
+        stdout = stdout.decode('utf8').strip() if stdout else ' '
+        stderr = stderr.decode('utf8').strip() if stderr else ' '
+        return stdout, stderr
+
+    def execute(self, params):
+        logging.error("exec method not implemented!")
+
     def run(self, params):
-        logging.error("run method not implemented!")
+        return json_normalize(self.execute(params))
 
 class SLHARunner(BaseRunner):
     def __init__(self,conf):
@@ -67,10 +88,7 @@ class SLHARunner(BaseRunner):
         self.blocks = conf.get('getblocks', [])
         self.makedirs()
 
-    def run(self, params):
-        slha = {'log': nan}
-        # TODO: Too long filenames/argument for subprocess?
-        # fname = '_'.join(['{}.{}'.format(p,v) for p,v in params.items()])
+    def prepare(self, params):
         fname = str(randrange(10**10))
         fin  = os.path.join(self.config['rundir'], fname + '.in')
         fout = os.path.join(self.config['rundir'], fname + '.out')
@@ -81,34 +99,32 @@ class SLHARunner(BaseRunner):
                 params = defaultdict(str, { '%{}%'.format(p) : v for p,v in params.items() })
                 inputf.write(self.tpl.format_map(params))
             except KeyError:
-                err = "Could not substitute {}.".format(params)
-                logging.error(err)
-                return json_normalize({ 'log': err })
+                logging.error("Could not substitute {}.".format(params))
+                return None, None, None
+        return fin, fout, flog
 
-        proc = Popen([self.config['binary'], fin, fout], stderr=STDOUT, stdout=PIPE)
-        try:
-            stdout, stderr = proc.communicate(timeout=self.timeout)
-        except TimeoutExpired:
-            stdout = ''
-            stderr = 'Timeout'
-        if os.path.isfile(fout):
-            slha = parseSLHA(fout, self.blocks)
-            if self.config.get('constraints', False) and not self.constraints(slha):
-                slha = {}
-            if self.config.get('remove_slha', True):
-                try:
-                    os.remove(fout)
-                except FileNotFoundError:
-                    logging.error('Output file {} missing?'.format(fout))
+    def read(self, fout):
+        if not os.path.isfile(fout):
+            return {}
+        slha = parseSLHA(fout, self.blocks)
+        if self.config.get('constraints', False) and not self.constraints(slha):
+            slha = {}
+        return slha
+
+    def execute(self, params):
+        slha = {'log': nan}
+        fin, fout, flog = self.prepare(params)
+        if not all([fin, fout, flog]):
+            return {'log': 'Error preparing files'}
+
+        stdout, stderr = self.runBinary(self.config['binary'], fin, fout)
+        slha = self.read(fout)
 
         if self.config.get('remove_slha', True):
-            try:
-                os.remove(fin)
-            except FileNotFoundError:
-                logging.error('Input file {} missing?'.format(fin))
-        if (stdout or stderr) and self.config.get('keep_log', True):
-            stdout = stdout.decode('utf8').strip() if stdout else ' '
-            stderr = stderr.decode('utf8').strip() if stderr else ' '
+            self.removeFile(fin)
+            self.removeFile(fout)
+
+        if self.config.get('keep_log', False) and (stdout or stderr):
             log = 'parameters: {}\nstdout: {}\nstderr: {}\n\n'.format(params,stdout, stderr)
             slha.update({ 'log': log })
             if self.config.get('logfiles', False):
@@ -116,7 +132,7 @@ class SLHARunner(BaseRunner):
                     logf.write(log)
                 slha.update({ 'log': flog })
             logging.debug(log)
-        return json_normalize(slha)
+        return slha
 
 RUNNERS = {
         'Base': BaseRunner,

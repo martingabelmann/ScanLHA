@@ -43,7 +43,6 @@ blocks:
       - {id: 79, value: 0}  # Write WCXF files
       - {id: 515, value: 1}  # write parameters at GUT scale
       - {id: 530, value: 1}  # Write Blocks for Vevacious
-      - {id: 530, value: 0}  #
   - block: DECAYOPTIONS
     lines:
       - {id: 1, value: 1}  # Cha
