@@ -6,7 +6,7 @@ from random import randrange,randint
 import os
 from sys import exit
 from numpy import nan
-from shutil import copy2, rmtree
+from shutil import copy2,copytree, rmtree
 from tempfile import mkdtemp
 from pandas.io.json import json_normalize
 
@@ -34,11 +34,14 @@ class BaseRunner():
             tocopy += self.config['binaries']
             self.binaries = [os.path.join(self.rundir, os.path.basename(b)) for b in self.config['binaries']]
         for f in tocopy:
-            if not os.path.isfile(f) and not os.path.isdir(f):
+            if not os.path.exists(f):
                 logging.error('File/dir {} not found!'.format(f))
                 exit(1)
             logging.info('Copying {} into temporary directory {}.'.format(f, self.rundir))
-            copy2(f, self.rundir)
+            if os.path.isdir(f):
+                copytree(f, os.path.join(self.rundir, os.path.basename(f)))
+            else:
+                copy2(f, self.rundir)
             logging.info('Changing directory')
             os.chdir(self.rundir)
 
@@ -148,24 +151,44 @@ class SLHARunner(BaseRunner):
 
 class MICROMEGAS(SLHARunner):
     def __init_(self,conf):
-        """need to compile micromegas for each runner since it does have hard coded paths"""
+        """need to compile micromegas for each runner since it uses hard coded paths"""
         self.config = conf
-        self.timeout = conf.get('timeout', 10)
+        self.timeout = conf.get('timeout', 10800)
         self.tpl = conf['template']
         self.blocks = conf.get('getblocks', [])
         self.rundir = os.getcwd()
         self.binaries = []
         self.binary = ""
-        self.makedirs()
-        # TODO: build MICROMEGAS
+        if 'micromegas' not in self.config or not os.path.exists(self.config['micromegas']):
+            logging.error('need to specify "micromegas" sources files')
+            exit(1)
+        if 'modelname' not in self.config:
+            logging.error('need to specify "modelname" name')
+            exit(1)
+        self.makedirs(tocopy = self.config['micromegas'])
+        self.omegadir = os.path.join(self.rundir,os.path.basename(self.config['micromegas']))
+        self.modeldir = os.path.join(self.omegadir, self.config['modelname'])
+        os.chdir(self.omegadir)
+        stderr, stdout = self.runBinary('make')
+        os.chdir(self.modeldir)
+        stderr, stdout = self.runBinary('make', 'main={}'+self.config['omegamain'])
+        self.binaries = [
+                self.binary,
+                os.path.join(self.modeldir, self.config['omegamain'].replace('.cpp',''))
+                ]
 
     def execute(self, params):
         fin, fout, flog = self.prepare(params)
         if not all([fin, fout, flog]):
             return {'log': 'Error preparing files'}
 
-        stdoutSPheno, stderrSPheno = self.runBinary(self.config['spheno-binary'], fin, fout)
-        stdoutOmega, stderrOmega = self.runBinary(self.config['micromegas-binary'], fout)
+        stdoutSPheno, stderrSPheno = self.runBinary(self.binaries[0], fin, fout)
+        if os.path.isfile(fout):
+            stdoutOmega, stderrOmega = self.runBinary(self.binaries[1], fout)
+        else:
+            stdoutOmega, stderrOmega = "", ""
+        stdout = stdoutSPheno + stdoutOmega
+        stderr = stderrSPheno + stderrOmega
         slha = self.read(fout)
 
         if self.config.get('remove_slha', True):
