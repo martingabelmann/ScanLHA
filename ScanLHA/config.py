@@ -155,7 +155,11 @@ class Config(dict):
                         line['parameter'] = para
                         ok = False
                 self.parameters[line['parameter']] = line
-                if 'value' in line:
+                if 'value' in line and line.get('dependent', False) and type(line['value']) != str:
+                    print(line.get('dependent', False))
+                    logging.error("'value' with attribute 'dependent' must be string not {} ({}, {}).".format(type(line['value']), block['block'], line['id']))
+                    ok = False
+                if 'value' in line and not line.get('dependent', False):
                     try:
                         float(line['value'])
                     except ValueError:
@@ -169,5 +173,7 @@ class Config(dict):
                     ok = False
                 if 'latex' not in line:
                     line['latex'] = line['parameter']
+                if 'lha' not in line:
+                    line['lha'] = '{}.values.{}'.format(block['block'],line['id'])
                 lines_seen.append([block['block'], line['id']])
         return ok
