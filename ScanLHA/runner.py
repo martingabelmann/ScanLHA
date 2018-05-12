@@ -4,8 +4,10 @@ from subprocess import Popen, STDOUT, PIPE, TimeoutExpired
 from .slha import parseSLHA
 from random import randrange,randint
 import os
+from numpy import nan
 from shutil import copy2, rmtree
 from tempfile import mkdtemp
+from pandas.io.json import json_normalize
 
 class BaseRunner():
     def __init__(self,conf):
@@ -46,18 +48,13 @@ class BaseRunner():
         self.cleanup()
 
     def constraints(self, result):
-        if not self.config.get('constraints', False):
-            return result
         try:
             if not all(map(eval, self.config['constraints'])):
-                raise(ValueError)
-            return result
+                return
+            return True
         except KeyError as e:
-            return { 'log': 'invalid constraint: {}'.format(e) }
-        except ValueError:
-            return
-        except Exception as e:
-            return {'log' : str(e)}
+            logging.error('invalid constraint: {}'.format(e))
+        return
 
     def run(self, params):
         logging.error("run method not implemented!")
@@ -71,7 +68,7 @@ class SLHARunner(BaseRunner):
         self.makedirs()
 
     def run(self, params):
-        slha = {}
+        slha = {'log': nan}
         # TODO: Too long filenames/argument for subprocess?
         # fname = '_'.join(['{}.{}'.format(p,v) for p,v in params.items()])
         fname = str(randrange(10**10))
@@ -86,7 +83,7 @@ class SLHARunner(BaseRunner):
             except KeyError:
                 err = "Could not substitute {}.".format(params)
                 logging.error(err)
-                return { 'log': err }
+                return json_normalize({ 'log': err })
 
         proc = Popen([self.config['binary'], fin, fout], stderr=STDOUT, stdout=PIPE)
         try:
@@ -96,11 +93,14 @@ class SLHARunner(BaseRunner):
             stderr = 'Timeout'
         if os.path.isfile(fout):
             slha = parseSLHA(fout, self.blocks)
+            if self.config.get('constraints', False) and not self.constraints(slha):
+                slha = {}
             if self.config.get('remove_slha', True):
                 try:
                     os.remove(fout)
                 except FileNotFoundError:
                     logging.error('Output file {} missing?'.format(fout))
+
         if self.config.get('remove_slha', True):
             try:
                 os.remove(fin)
@@ -116,7 +116,7 @@ class SLHARunner(BaseRunner):
                     logf.write(log)
                 slha.update({ 'log': flog })
             logging.debug(log)
-        return slha
+        return json_normalize(slha)
 
 RUNNERS = {
         'Base': BaseRunner,
