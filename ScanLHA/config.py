@@ -65,7 +65,7 @@ class Config(dict):
                     logging.error('Errorenous config file.')
                     exit(1)
         except FileNotFoundError:
-            logging.error('File {} not found.' % src)
+            logging.error('File {} not found.'.format(src))
             return -2
         except Exception as e:
             logging.error("failed to load config file " + src)
@@ -77,7 +77,7 @@ class Config(dict):
             f.write(yaml.dump(self))
 
     def append(self, c):
-        for b in ['runner', 'contourplot', 'xyplot']:
+        for b in ['runner', 'scatterplot']:
             if b in c and b in self:
                 self[b].update(c[b])
             elif b in c and b not in self:

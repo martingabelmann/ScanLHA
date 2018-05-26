@@ -37,7 +37,7 @@ blocks:
       - {id: 66, value: 1}  # 1/0 turn Two-Scale Matching on/off
       - {id: 67, value: 1}  # effective Higgs mass calculation: 1/2 auto/always
       - {id: 75, value: 0}  # Write WHIZARD files
-      - {id: 76, value: 0}  # Write HiggsBounds file
+      - {id: 76, value: 1}  # Write HiggsBounds file
       - {id: 77, value: 1}  # Output for MicrOmegas
       - {id: 78, value: 0}  # Output for MadGraph
       - {id: 79, value: 0}  # Write WCXF files

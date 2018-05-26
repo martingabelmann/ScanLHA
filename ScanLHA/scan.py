@@ -8,7 +8,7 @@ from concurrent.futures import as_completed
 from tqdm import tqdm
 from math import * # noqa: E403
 from itertools import product
-from pandas import HDFStore, concat
+from pandas import HDFStore, concat, DataFrame
 from .slha import genSLHA
 from .runner import RUNNERS
 from numpy.random import seed, uniform
@@ -22,11 +22,11 @@ def substitute(param_dict):
         return substitute(subst)
 
 class Scan():
-    def __init__(self, c, runner='SLHA'):
+    def __init__(self, c):
         self.config = c
         self.config['runner']['template'] = genSLHA(c['blocks'])
         self.getblocks = self.config.get('getblocks', [])
-        self.runner = RUNNERS[runner]
+        self.runner = RUNNERS[self.config['runner'].get('type','SLHA')]
         self.scanset = []
         scan = None
         for block in c['blocks']:
@@ -124,7 +124,7 @@ class RandomScan():
         self.numparas = eval(str(c['runner']['numparas']))
         self.config['runner']['template'] = genSLHA(c['blocks'])
         self.getblocks = self.config.get('getblocks', [])
-        self.runner = RUNNERS[runner]
+        self.runner = RUNNERS[self.config['runner'].get('type','SLHA')]
         self.parallel = 1
         self.seed = round(time()) if not seed else seed
         self.randoms = { p : [eval(str(k)) for k in v['random']] for p,v in c.parameters.items() if 'random' in v }
@@ -138,6 +138,9 @@ class RandomScan():
     def scan(self, numparas, pos=0):
         numresults = 0
         runner = self.runner(self.config['runner'])
+        if not runner.initialized:
+            logging.error('Could not initialize runner.')
+            return DataFrame()
         results = []
         seed(self.seed + pos)
         with tqdm(total=numparas, unit='point', position=pos) as bar:
