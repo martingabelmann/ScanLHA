@@ -1,7 +1,0 @@
-plha
-numpy
-ipython
-tqdm
-pandas
-matplotlib
-PyYAML
