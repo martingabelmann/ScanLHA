@@ -170,6 +170,8 @@ class RandomScan():
         self.results = concat(self.results, ignore_index=True)
 
     def save(self, filename='store.hdf', path='results'):
+        if self.results.empty:
+            return
         print('Saving to {} ({})'.format(filename,path))
         if path == 'config':
             logging.error('Cant use "config" as path, using "config2" instead.')

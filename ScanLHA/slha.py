@@ -49,14 +49,23 @@ def parseSLHA(slhafile, blocks=[]):
     except:
         logging.error('Could not parse %s !' % slhafile)
         return -3
-    slha_blocks = slha['BLOCK']
+    try:
+        slha_blocks = slha['BLOCK']
+    except KeyError:
+        slha_blocks = {}
     if blocks:
         slha_blocks = { b : v for b,v in slha_blocks.items() if b in blocks }
+    try:
+        slha_blocks.pop('HiggsBoundsInputHiggsCouplingsBosons')
+        slha_blocks.pop('HiggsBoundsInputHiggsCouplingsFermions')
+    except KeyError:
+        pass
     for b,v in slha_blocks.items():
-        if 'values' in v:
+        try:
             v['values'] = mergedicts([list2dict(l) for l in v['values']],{})
-        if 'info' in v:
             v['info'] = ''.join(str(i) for i in v['info'])
+        except:
+            pass
 
     if 'DECAY' not in slha:
         return slha_blocks
@@ -64,8 +73,9 @@ def parseSLHA(slhafile, blocks=[]):
     decayblock = 'DECAYS' if 'DECAY' in slha_blocks else 'DECAY'
     slha_blocks[decayblock] = slha['DECAY']
     for d,v in slha_blocks[decayblock].items():
-        if 'values' in v:
+        try:
             v['values'] = mergedicts([list2dict(list(reversed(l))) for l in v['values']],{})
-        if 'info' in v:
             v['info'] = ''.join(str(i) for i in v['info']) if len(v['info']) > 1 else v['info'][0]
+        except:
+            pass
     return slha_blocks

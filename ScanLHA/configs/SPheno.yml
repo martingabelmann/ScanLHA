@@ -33,7 +33,7 @@ blocks:
       - {id: 20, value: 1}  # mass uncreatanties
       - {id: 51, value: 0}  # Write Output in CKM basis
       - {id: 55, value: 1}  # Calculate loop corrected masses
-      - {id: 57, value: 0}  # Calculate low energy constraints
+      - {id: 57, value: 1}  # Calculate low energy constraints
       - {id: 66, value: 1}  # 1/0 turn Two-Scale Matching on/off
       - {id: 67, value: 1}  # effective Higgs mass calculation: 1/2 auto/always
       - {id: 75, value: 0}  # Write WHIZARD files
@@ -42,6 +42,7 @@ blocks:
       - {id: 78, value: 0}  # Output for MadGraph
       - {id: 79, value: 0}  # Write WCXF files
       - {id: 515, value: 1}  # write parameters at GUT scale
+      - {id: 520, value: 1}  # Write effective Higgs couplings
       - {id: 530, value: 1}  # Write Blocks for Vevacious
   - block: DECAYOPTIONS
     lines:
