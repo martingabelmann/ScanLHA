@@ -8,7 +8,12 @@ author = "Martin Gabelmann"
 author-email = "martin@gabelmann.biz"
 home-page = "https://github.com/martingabelmann/ScanLHA.git"
 classifiers = ["License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)"]
-requires = ["matplotlib",
+requires = ["pylha,
+"numpy",
+"ipython",
+"tqdm",
+"pandas",
+""matplotlib",
 "PyYAML"]
 description-file = "README.md"
 
