@@ -33,6 +33,7 @@ class Config(dict):
                 'uniform': uniform,
                 'normal': normal
                 }
+        self.valid = True
         self.parameters = {} # directly access a block item via 'parameter'
         self.load()
 
@@ -66,10 +67,12 @@ class Config(dict):
                     exit(1)
         except FileNotFoundError:
             logging.error('File {} not found.'.format(src))
+            self.valid = False
             return -2
         except Exception as e:
             logging.error("failed to load config file " + src)
             logging.error(str(e))
+            self.valid = False
 
     def save(self, dest = None):
         dest = self.src if not dest else dest
@@ -130,51 +133,51 @@ class Config(dict):
         return self.validate()
 
     def validate(self):
-        ok = True
+        self.valid = True
         if 'blocks' not in self:
             logging.error("No 'blocks' section in config ")
-            ok = False
+            self.valid = False
         # check for double entries
         lines_seen = []
         self.parameters = {}
         for block in self['blocks']:
             if block['block'].count('.') > 0:
                 logging.error('Block {} contains forbiddeni character "."!'.format(block['block']))
-                ok = False
+                self.valid = False
             for line in block['lines']:
                 if 'id' not in line:
                     logging.error('No ID set for line entry!')
-                    ok = False
+                    self.valid = False
                 if [block['block'],line['id']] in lines_seen:
                     logging.error('Parameter {} in block {} set twice! Taking the first occurence.'.format(line['id'], block['block']))
-                    ok = False
+                    self.valid = False
                 if 'parameter' not in line:
                     line['parameter'] = '{}.{}'.format(block['block'],line['id'])
                 elif line['parameter'] in self.parameters.keys():
                         para = line['parameter'] + '1'
                         logging.error('Parameter {} set twice! Renaming to {}.'.format(line['parameter'], para))
                         line['parameter'] = para
-                        ok = False
+                        self.valid = False
                 self.parameters[line['parameter']] = line
                 if 'value' in line and line.get('dependent', False) and type(line['value']) != str:
                     print(line.get('dependent', False))
                     logging.error("'value' with attribute 'dependent' must be string not {} ({}, {}).".format(type(line['value']), block['block'], line['id']))
-                    ok = False
+                    self.valid = False
                 if 'value' in line and not line.get('dependent', False):
                     try:
                         float(line['value'])
                     except ValueError:
                         logging.error("'value' must be a number not {} ({}, {}).".format(str(type(line['value'])), block['block'], line['id']))
-                        ok = False
+                        self.valid = False
                 if 'values' in line and type(line['values']) != list and len(line['values']) < 1:
                     logging.error("'values' must be a nonemtpy list ({}, {}).".format(block['block'], line['id']))
-                    ok = False
+                    self.valid = False
                 if 'scan' in line and type(line['scan']) != list and len(line['scan']) < 2:
                     logging.error("'scan' must be a nonemtpy list ({}, {}).".format(block['block'], line['id']))
-                    ok = False
+                    self.valid = False
                 if 'latex' not in line:
                     line['latex'] = line['parameter']
                 if 'lha' not in line:
                     line['lha'] = '{}.values.{}'.format(block['block'],line['id'])
                 lines_seen.append([block['block'], line['id']])
-        return ok
+        return self.valid
