@@ -70,7 +70,7 @@ class Config(dict):
             self.valid = False
             return -2
         except Exception as e:
-            logging.error("failed to load config file " + src)
+            logging.error("failed to load config file {}".format(src))
             logging.error(str(e))
             self.valid = False
 

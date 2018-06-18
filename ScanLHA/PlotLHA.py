@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from pandas import read_hdf
+from pandas import HDFStore
 # from IPython import embed
 import logging
 import os
@@ -85,11 +85,17 @@ def main():
     conf = PlotConf()
     conf = conf.new_child(c['scatterplot'].get('conf',{}))
 
-    if 'datafile' not in conf:
-        logging.error('No "datafile" to plot given')
+    if not os.path.isfile(conf['datafile']):
+        logging.error('Data file {} does not exist.'.format(conf['datafile']))
         exit(1)
 
-    DATA = read_hdf(conf['datafile'])
+    store = HDFStore(conf['datafile'])
+    path = 'results' # TODO
+    DATA = store[path]
+    attrs = store.get_storer(path).attrs
+    if hasattr(attrs, 'config'):
+        attrs.config['scatterplot'] = {}
+        c.append(attrs.config)
     if not DATA.empty and 'newfields' in conf:
         for field,expr in conf['newfields'].items():
             logging.debug("executing DATA[{}] = {}]".format(field, expr))
@@ -194,3 +200,5 @@ def main():
         logging.info("Saving {}.".format(plotfile))
         plt.savefig(plotfile, bbox_inches="tight", dpi=pconf['dpi'])
         pcount += 1
+
+    store.close()
