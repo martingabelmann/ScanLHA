@@ -43,12 +43,14 @@ def main():
                 'x-axis': self.axisdefault,
                 'y-axis': self.axisdefault,
                 'z-axis': self.axisdefault,
+                'constraints': [],
                 'legend': {
                     'loc' : 'right',
                     'bbox_to_anchor' : [1.5, 0.5]
                     },
                 'hline': False,
                 'vline': False,
+                'lw': 1.0,
                 'title': False,
                 'label': None,
                 'cmap': None,
@@ -131,16 +133,17 @@ def main():
                 xlabel = c.parameters.get(x, {'latex': xlabel})['latex']
                 ylabel = c.parameters.get(y, {'latex': ylabel})['latex']
                 zlabel = c.parameters.get(z, {'latex': zlabel})['latex']
+
             if xlabel:
                 plt.xlabel(xlabel)
             if ylabel:
                 plt.ylabel(ylabel)
 
             if lconf['hline']:
-                plt.axhline(y=y, color=color, linestyle='-', label=label, zorder=zorder)
+                plt.axhline(y=y, color=color, linestyle='-', lw=lconf['lw'], label=label, zorder=zorder, alpha=lconf['alpha'])
                 continue
             if lconf['vline']:
-                plt.axvline(x=x, color=color, linestyle='-', label=label, zorder=zorder)
+                plt.axvline(x=x, color=color, linestyle='-', lw=lconf['lw'], label=label, zorder=zorder, alpha=lconf['alpha'])
                 continue
 
             if hasattr(c, 'parameters'):
@@ -153,6 +156,9 @@ def main():
                 bounds = lconf[ax]['boundaries']
                 if len(bounds) == 2:
                     PDATA = PDATA[(PDATA[field] >= bounds[0]) & (PDATA[field] <= bounds[1])]
+
+            for constr in lconf['constraints']:
+                PDATA = PDATA[eval(constr)]
 
             if lconf['x-axis']['lognorm']:
                 plt.xscale('log')
