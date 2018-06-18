@@ -115,7 +115,7 @@ class Scan():
             path = "config2"
         store = HDFStore(filename)
         store[path] = self.results
-        store.get_storer(path).attrs.config = dict(self.config)
+        store.get_storer(path).attrs.config = self.config
         store.close()
 
 class RandomScan():
@@ -178,7 +178,7 @@ class RandomScan():
             path = "config2"
         store = HDFStore(filename)
         store[path] = self.results
-        store.get_storer(path).attrs.config = dict(self.config)
+        store.get_storer(path).attrs.config = self.config
         store.get_storer(path).attrs.seed = self.seed
         store.get_storer(path).attrs.parallel = self.parallel
         store.close()
