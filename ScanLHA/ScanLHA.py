@@ -16,12 +16,14 @@ def cpath(yml):
 
 def main():
     parser = ArgumentParser(description='Perform a (S)LHA scan.')
-    parser.add_argument("config", type=str,
+    parser.add_argument("config", type=str, metavar="config.yml",
             help="path to YAML file config.yml containing blocks to scan. Must be the very first argument.")
     parser.add_argument("output", nargs='?', default="config.h5",
             help="optional file path to store the results, defaults to config.h5")
     parser.add_argument("-v", "--verbose", action="store_true",
             help="increase output verbosity")
+    parser.add_argument("-p", "--parallel", metavar='N', type=int, default=None,
+            help="parallelize on N threads")
     parser.add_argument("-o", "--overwrite", action="store_true",
             help="overwrite output files without asking")
 
@@ -93,5 +95,5 @@ def main():
         scan = ScanLHA.RandomScan(c)
     else:
         scan = ScanLHA.Scan(c)
-    scan.submit()
+    scan.submit(args.parallel)
     scan.save(filename=HDFSTORE)
