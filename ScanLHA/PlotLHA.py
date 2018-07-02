@@ -32,7 +32,7 @@ def main():
                 'lognorm' :  False,
                 'vmin' :  'auto',
                 'vmax' :  'auto',
-                'ticks' :  'auto',
+                'ticks' :  [],
                 'colorbar' :  False,
                 'label' : None
                 }
@@ -136,9 +136,9 @@ def main():
             ylabel = lconf['y-axis']['label']
             zlabel = lconf['z-axis']['label']
             if hasattr(c, 'parameters'):
-                xlabel = c.parameters.get(x, {'latex': xlabel})['latex']
-                ylabel = c.parameters.get(y, {'latex': ylabel})['latex']
-                zlabel = c.parameters.get(z, {'latex': zlabel})['latex']
+                xlabel = c.parameters.get(x, {'latex': xlabel})['latex'] if not xlabel else xlabel
+                ylabel = c.parameters.get(y, {'latex': ylabel})['latex'] if not ylabel else ylabel
+                zlabel = c.parameters.get(z, {'latex': zlabel})['latex'] if not zlabel else zlabel
 
             if xlabel:
                 plt.xlabel(xlabel)
@@ -175,12 +175,19 @@ def main():
             if z:
                 color = PDATA[z]
 
+            if lconf['x-axis']['ticks']:
+                plt.xticks(lconf['x-axis']['ticks'][0],lconf['x-axis']['ticks'][1])
+            if lconf['y-axis']['ticks']:
+                plt.yticks(lconf['y-axis']['ticks'][0],lconf['y-axis']['ticks'][1])
+
             cs = plt.scatter(PDATA[x], PDATA[y], zorder=zorder, label=label, cmap=cmap, c=color, norm=znorm, alpha=pconf['alpha'])
 
             if lconf['z-axis']['colorbar']:
                 cbar = plt.colorbar(cs)
                 if zlabel:
                     cbar.set_label(zlabel)
+                if lconf['z-axis']['ticks']:
+                    cbar.set_ticks(lconf['z-axis']['ticks'])
 
             lcount += 1
 

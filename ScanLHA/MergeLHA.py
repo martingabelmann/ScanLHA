@@ -29,6 +29,8 @@ def main():
                     store_conf = tmp_conf
             except AttributeError:
                 print('No config attribute found in {}'.format(f))
+            if 'scatterplot' in store_conf:
+                tmp_conf['scatterplot'] = store_conf['scatterplot']
             if store_conf and store_conf != tmp_conf:
                 print('Warning: merge file with different config {}'.format(f))
             tmp_df = tmp_store['results']
