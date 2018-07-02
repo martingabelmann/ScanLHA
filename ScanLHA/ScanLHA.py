@@ -17,7 +17,7 @@ def cpath(yml):
 def main():
     parser = ArgumentParser(description='Perform a (S)LHA scan.')
     parser.add_argument("config", type=str, metavar="config.yml",
-            help="path to YAML file config.yml containing blocks to scan. Must be the very first argument.")
+            help="path to YAML file config.yml containing config for the scan. Must be the very first argument.")
     parser.add_argument("output", nargs='?', default="config.h5",
             help="optional file path to store the results, defaults to config.h5")
     parser.add_argument("-v", "--verbose", action="store_true",
@@ -33,13 +33,11 @@ def main():
         logging.error('No valid config file "{}".'.format(sys.argv[1]))
         parser.parse_args(["-h"])
 
-    logging.getLogger().setLevel(logging.INFO)
-
-    logging.info('loading config {}'.format(sys.argv[1]))
+    logging.debug('loading config {}'.format(sys.argv[1]))
     scanconf = ScanLHA.Config(sys.argv[1])
     defaultfile = scanconf['runner'].get('defaults', 'SPheno.yml')
     if defaultfile:
-        logging.info('loading default config {}'.format(defaultfile))
+        logging.debug('loading default config {}'.format(defaultfile))
         c = ScanLHA.Config(cpath(defaultfile))
         if not c.valid:
             logging.error('No valid default config.')
@@ -62,7 +60,7 @@ def main():
                 },
             }
     if arg_paras:
-        required_paras = parser.add_argument_group("Parameters to be specified for the scan.")
+        required_paras = parser.add_argument_group("Parameters to be specified for the scan")
     for p in arg_paras:
         required_paras.add_argument("--{}".format(p),
                 help=arg_types['help'][c[p]['argument']],
