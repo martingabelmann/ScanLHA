@@ -1,20 +1,14 @@
 [build-system]
-build-backend = "flit.buildapi"
 requires = ["flit"]
+build-backend = "flit.buildapi"
 
 [tool.flit.metadata]
 module = "ScanLHA"
 author = "Martin Gabelmann"
 author-email = "martin@gabelmann.biz"
-home-page = "https://github.com/martingabelmann/ScanLHA.git"
+home-page = "https://github.com/martingabelmann"
 classifiers = ["License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)"]
-requires = ["pylha,
-"numpy",
-"ipython",
-"tqdm",
-"pandas",
-""matplotlib",
-"PyYAML"]
+# requires = ["pylha, "numpy", "ipython", "tqdm", "pandas", "matplotlib", "PyYAML"]
 description-file = "README.md"
 
 [tool.flit.scripts]
