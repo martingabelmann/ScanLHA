@@ -30,6 +30,7 @@ def main():
     if len(sys.argv) == 1:
         parser.parse_args(["-h"])
     if not os.path.isfile(sys.argv[1]):
+        parser.parse_args()
         logging.error('No valid config file "{}".'.format(sys.argv[1]))
         parser.parse_args(["-h"])
 
