@@ -69,11 +69,12 @@ class Scan():
         if not self.config.validate():
             return
         values = []
+
         for parameter,line in self.config.parameters.items():
             if 'values' in line:
                 values.append([{str(parameter): num} for num in line['values']])
             if 'dependent' in line and 'value' in line:
-                valuse.append([line['parameter'], line['value']])
+                values.append([{line['parameter']: line['value']}])
         self.numparas = prod([len(v) for v in values])
         logging.info('Build all %d parameter points.' % self.numparas)
         self.scanset = [ substitute(dict(ChainMap(*s))) for s in product(*values) ]

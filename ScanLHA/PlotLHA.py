@@ -180,7 +180,7 @@ def main():
             if lconf['y-axis']['ticks']:
                 plt.yticks(lconf['y-axis']['ticks'][0],lconf['y-axis']['ticks'][1])
 
-            cs = plt.scatter(PDATA[x], PDATA[y], zorder=zorder, label=label, cmap=cmap, c=color, norm=znorm, alpha=pconf['alpha'])
+            cs = plt.scatter(PDATA[x], PDATA[y], zorder=zorder, label=label, cmap=cmap, c=color, norm=znorm, alpha=lconf['alpha'])
 
             if lconf['z-axis']['colorbar']:
                 cbar = plt.colorbar(cs)
