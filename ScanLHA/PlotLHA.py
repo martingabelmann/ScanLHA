@@ -11,6 +11,7 @@ import matplotlib
 from matplotlib.colors import LogNorm, Normalize
 from matplotlib.colorbar import ColorbarBase
 matplotlib.use('Agg')
+# matplotlib.use('ps')
 import matplotlib.pyplot as plt # noqa: E402
 
 def main():
@@ -65,8 +66,14 @@ def main():
                     'font.size': 18,
                     'text.usetex': True,
                     'font.weight' : 'bold',
-                    'text.latex.preamble': [r'\usepackage{nicefrac}\usepackage{amsmath}\usepackage{units}\usepackage{sfmath} \boldmath']
+                    'text.latex.preamble': [
+                        r'\usepackage{xcolor}',
+                        r'\usepackage{nicefrac}',
+                        r'\usepackage{amsmath}',
+                        r'\usepackage{units}',
+                        r'\usepackage{sfmath} \boldmath']
                     },
+
                 'dpi': 300,
                 'textbox': {}
                 })
@@ -133,7 +140,7 @@ def main():
             if pconf['z-axis']['label']:
                 cbar.set_label(pconf['z-axis']['label'])
             if pconf['z-axis']['ticks']:
-                cbar.set_ticks(lconf['z-axis']['ticks'])
+                cbar.set_ticks(pconf['z-axis']['ticks'])
             plt.savefig(pconf['filename'],bbox_inches='tight')
             plt.figure()
             continue
@@ -184,6 +191,7 @@ def main():
 
             PDATA = DATA
             if(lconf['datafile'] and lconf['datafile'] != conf['datafile']):
+                conf['datafile'] = lconf['datafile'] # TODO
                 DATA = HDFStore(lconf['datafile'])['results']  # TODO
                 PDATA = DATA
                 if not PDATA.empty and 'newfields' in conf:
