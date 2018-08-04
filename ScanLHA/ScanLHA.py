@@ -73,7 +73,7 @@ def main():
     for p,v in args.__dict__.items():
         if p not in arg_paras:
             continue
-        c[p][c[p]['argument']] = v
+        c[p][c[p]['argument']] = eval(v)
 
     if not c.valid:
         logging.error('No valid scan config.')

@@ -8,7 +8,8 @@ from math import * # noqa: E403
 from collections import ChainMap
 from argparse import ArgumentParser
 import matplotlib
-from matplotlib.colors import LogNorm
+from matplotlib.colors import LogNorm, Normalize
+from matplotlib.colorbar import ColorbarBase
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt # noqa: E402
 
@@ -28,13 +29,15 @@ def main():
     class PlotConf(ChainMap):
         """ config class which allows for recursively defined defaults """
         axisdefault = {
-                'boundaries' :  [],
-                'lognorm' :  False,
-                'vmin' :  'auto',
-                'vmax' :  'auto',
+                'boundaries' : [],
+                'lognorm' : False,
+                'vmin' : None,
+                'vmax' : None,
                 'ticks' :  [],
-                'colorbar' :  False,
-                'label' : None
+                'colorbar' : False,
+                'colorbar_orientation': 'horizontal',
+                'label' : None,
+                'datafile' : None
                 }
 
         def __init__(self, *args):
@@ -43,6 +46,7 @@ def main():
                 'x-axis': self.axisdefault,
                 'y-axis': self.axisdefault,
                 'z-axis': self.axisdefault,
+                'colorbar_only': False,
                 'constraints': [],
                 'legend': {
                     'loc' : 'right',
@@ -51,15 +55,19 @@ def main():
                 'hline': False,
                 'vline': False,
                 'lw': 1.0,
+                's': None,
                 'title': False,
                 'label': None,
                 'cmap': None,
                 'alpha' : 1.0,
                 'datafile': 'results.h5',
                 'rcParams': {
-                    'font.size': 15
+                    'font.size': 18,
+                    'text.usetex': True,
+                    'font.weight' : 'bold',
+                    'text.latex.preamble': [r'\usepackage{nicefrac}\usepackage{amsmath}\usepackage{units}\usepackage{sfmath} \boldmath']
                     },
-                'dpi': 800,
+                'dpi': 300,
                 'textbox': {}
                 })
 
@@ -110,8 +118,25 @@ def main():
 
         plt.cla()
         plt.clf()
-        plt.rc('text', usetex=True)
         plt.rcParams.update(pconf['rcParams'])
+
+        if pconf['colorbar_only']:
+            plt.figure(figsize=(8, 0.25))
+            ax = plt.gca()
+            norm = Normalize(vmin=pconf['z-axis']['vmin'], vmax=pconf['z-axis']['vmax'])
+            if pconf['z-axis']['lognorm']:
+                norm = LogNorm(vmin=pconf['z-axis']['vmin'], vmax=pconf['z-axis']['vmax'])
+            cbar = ColorbarBase(ax,norm=norm, cmap=pconf['cmap'], orientation=pconf['z-axis']['colorbar_orientation'])
+            if pconf['z-axis']['colorbar_orientation'] == 'horizontal':
+                ax.xaxis.set_label_position('top')
+                ax.xaxis.set_ticks_position('top')
+            if pconf['z-axis']['label']:
+                cbar.set_label(pconf['z-axis']['label'])
+            if pconf['z-axis']['ticks']:
+                cbar.set_ticks(lconf['z-axis']['ticks'])
+            plt.savefig(pconf['filename'],bbox_inches='tight')
+            plt.figure()
+            continue
 
         if pconf['title']:
             plt.title(conf['title'])
@@ -158,6 +183,15 @@ def main():
                 z = c.parameters.get(z,{'lha': z})['lha']
 
             PDATA = DATA
+            if(lconf['datafile'] and lconf['datafile'] != conf['datafile']):
+                DATA = HDFStore(lconf['datafile'])['results']  # TODO
+                PDATA = DATA
+                if not PDATA.empty and 'newfields' in conf:
+                    for field,expr in conf['newfields'].items():
+                        logging.debug("executing PATA[{}] = {}]".format(field, expr))
+                        PDATA[field] = eval(expr)
+                    logging.debug("done.")
+
             for ax,field in {'x-axis':x, 'y-axis':y, 'z-axis':z}.items():
                 bounds = lconf[ax]['boundaries']
                 if len(bounds) == 2:
@@ -170,20 +204,26 @@ def main():
                 plt.xscale('log')
             if lconf['y-axis']['lognorm']:
                 plt.yscale('log')
-            znorm = LogNorm(vmin=PDATA[z].min(), vmax=PDATA[z].max()) if lconf['z-axis']['lognorm'] else None
 
             if z:
                 color = PDATA[z]
+                vmin = PDATA[z].min() if not lconf['z-axis']['vmin'] else lconf['z-axis']['vmin']
+                vmax = PDATA[z].max() if not lconf['z-axis']['vmax'] else lconf['z-axis']['vmax']
+            else:
+                vmin = None
+                vmax = None
+            znorm = LogNorm(vmin=vmin, vmax=vmax) if lconf['z-axis']['lognorm'] else None
 
+            cs = plt.scatter(PDATA[x], PDATA[y], zorder=zorder, label=label, cmap=cmap, c=color, vmin=vmin, vmax=vmax, norm=znorm, s=lconf['s'], alpha=lconf['alpha'])
+
+            plt.margins(x=0.01,y=0.01)  # TODO
             if lconf['x-axis']['ticks']:
                 plt.xticks(lconf['x-axis']['ticks'][0],lconf['x-axis']['ticks'][1])
             if lconf['y-axis']['ticks']:
                 plt.yticks(lconf['y-axis']['ticks'][0],lconf['y-axis']['ticks'][1])
 
-            cs = plt.scatter(PDATA[x], PDATA[y], zorder=zorder, label=label, cmap=cmap, c=color, norm=znorm, alpha=lconf['alpha'])
-
             if lconf['z-axis']['colorbar']:
-                cbar = plt.colorbar(cs)
+                cbar = plt.colorbar(cs, orientation=lconf['z-axis']['colorbar_orientation'])
                 if zlabel:
                     cbar.set_label(zlabel)
                 if lconf['z-axis']['ticks']:
@@ -195,7 +235,7 @@ def main():
             plt.legend(**pconf['legend'])
 
         if pconf['textbox'] and 'text' in pconf['textbox']:
-            bbox = pconf['textbox'].get('bbox', dict(boxstyle='round', facecolor='white', alpha=0.5))
+            bbox = pconf['textbox'].get('bbox', dict(boxstyle='round', facecolor='white', alpha=0.2))
             va = pconf['textbox'].get('va', 'top')
             ha = pconf['textbox'].get('ha', 'left')
             textsize = pconf['textbox'].get('fontsize', pconf['rcParams'].get('font.size',15))
