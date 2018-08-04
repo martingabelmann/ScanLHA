@@ -231,7 +231,7 @@ def main():
 
             lcount += 1
 
-        if any([l.get('legend', True) for l in p['plots']]):
+        if any([l.get('label', False) for l in p['plots']]):
             plt.legend(**pconf['legend'])
 
         if pconf['textbox'] and 'text' in pconf['textbox']:
