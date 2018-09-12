@@ -133,7 +133,7 @@ class SLHARunner(BaseRunner):
             return {'log': nan}
         slha = parseSLHA(fout, self.blocks)
         if self.config.get('constraints', False) and not self.constraints(slha):
-            slha = {'log': nan}
+            slha = {}
         return slha
 
     def execute(self, params):
@@ -143,6 +143,13 @@ class SLHARunner(BaseRunner):
 
         stdout, stderr = self.runBinary(self.binary, fin, fout)
         slha = self.read(fout)
+        if 'log' in slha:
+            slha.pop('log')
+        if os.path.isfile(fout) and slha and self.HiggsBounds:
+            stdoutHB, stderrHB = self.runBinary(self.HiggsBounds, 'LandH', 'SLHA', '3', '0', fout)
+            stdout += stdoutHB
+            stderr += stderr
+            slha = self.read(fout)
 
         if self.config.get('remove_slha', True):
             self.removeFile(fin)
