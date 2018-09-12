@@ -62,8 +62,9 @@ def main():
                 'cmap': None,
                 'alpha' : 1.0,
                 'datafile': 'results.h5',
+                'fontsize': 28,
                 'rcParams': {
-                    'font.size': 18,
+                    'font.size': 28,
                     'text.usetex': True,
                     'font.weight' : 'bold',
                     'text.latex.preamble': [
@@ -108,7 +109,7 @@ def main():
     path = 'results' # TODO
     DATA = store[path]
     attrs = store.get_storer(path).attrs
-    if hasattr(attrs, 'config'):
+    if hasattr(attrs, 'config') and conf.get('conf_overwrite', False):
         attrs.config['scatterplot'] = {}
         c.append(attrs.config)
     if not DATA.empty and 'newfields' in conf:
@@ -126,6 +127,8 @@ def main():
         plt.cla()
         plt.clf()
         plt.rcParams.update(pconf['rcParams'])
+        if pconf['fontsize'] != conf['fontsize']:
+            plt.rcParams.update({'font.size': pconf['fontsize']})
 
         if pconf['colorbar_only']:
             plt.figure(figsize=(8, 0.25))
