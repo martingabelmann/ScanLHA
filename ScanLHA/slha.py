@@ -3,7 +3,7 @@ import logging
 import pylha
 
 def genSLHA(blocks):
-    """generate SLHA"""
+    """ generate SLHA """
     out = ''
     for block in blocks:
         out += 'BLOCK {}\n'.format(block['block'])
@@ -19,14 +19,14 @@ def genSLHA(blocks):
             out += '{id} {value} #{parameter} {comment}\n'.format_map(data)
     return out
 
-# recursively convert [1,2,3,4] to {'1':{'2':{'3':4}}
 def list2dict(l):
+    """ recursively convert [1,2,3,4] to {'1':{'2':{'3':4}} """
     if len(l) == 1:
         return l[0]
     return { str(l[0]) : list2dict(l[1:]) }
 
-# merge list of nested dicts
 def mergedicts(l, d):
+    """ merge list of nested dicts """
     if type(l) == list:
         d.update(l[0])
         for dct in l[1:]:
@@ -40,6 +40,13 @@ def mergedicts(l, d):
                 d[k] = l[k]
 
 def parseSLHA(slhafile, blocks=[]):
+    """ turn the content of an SLHA file into a dictionary
+    slhafile : path tp file
+    blocks   : list of BLOCKs to read, if empty all blocks are read
+
+    uses pylha but give a more meaningfun output
+    the result is stored in a nested dictionary.
+    """
     try:
         with open(slhafile,'r') as f:
             slha = pylha.load(f)

@@ -6,7 +6,7 @@ from numpy import linspace, prod
 from concurrent.futures import ProcessPoolExecutor as Executor
 from concurrent.futures import as_completed
 from tqdm import tqdm
-from math import * # noqa: E403
+from math import * # noqa: F403
 from itertools import product
 from pandas import HDFStore, concat, DataFrame
 from .slha import genSLHA
@@ -15,6 +15,7 @@ from numpy.random import seed, uniform
 from time import time
 
 def substitute(param_dict):
+    """ recusively apply format_map onto keys of <param_dict> using <param_dict> """
     subst = { p : str(v).format_map(param_dict) for p,v in param_dict.items() }
     if param_dict == subst:
         return { p : eval(v) for p,v in subst.items() }
@@ -22,6 +23,10 @@ def substitute(param_dict):
         return substitute(subst)
 
 class Scan():
+    """ Scan object
+    Controls a scan over a certain parameter range or an a random scan.
+    Needs a Config object (see ?ScanLHA.Config) for initialization
+    """
     def __init__(self, c):
         self.config = c
         self.config['runner']['template'] = genSLHA(c['blocks'])
@@ -43,6 +48,14 @@ class Scan():
             logging.info("Register a list of scan values with  addScanValues(<block>,{'id': <para-id>, 'values': [1,3,6,...])")
 
     def addScanRange(self, block, line):
+        """ register a scan range for SLHA entry in the block <block>.
+        <line> must be a dict containing
+          * the SLHA id 'id' within the block <block>
+          * a scan range 'scan' consiting of a two-tuple
+          * optional: 'distribution'
+            can be 'log', 'linear', 'geom', 'arange', 'uniform' and 'normal', see ?ScanLHA/Config.distribution
+            default: 'linear'
+        """
         if 'id' not in line:
             logging.error("No 'id' set for parameter.")
             return
@@ -55,6 +68,11 @@ class Scan():
         self.addScanValues(block, line)
 
     def addScanValues(self, block, line):
+        """ set a SLHA entry to a specific list of input values in the block <block>.
+            <line> must be a dict containing the
+            * 'id' of the SLHA entry within the block
+            * 'values' given as a list
+        """
         if 'id' not in line:
             logging.error("No 'id' set for parameter.")
             return
@@ -66,6 +84,7 @@ class Scan():
         self.config['runner']['template'] = genSLHA(self.config['blocks'])
 
     def build(self,num_workers=4):
+        """ expand parameter lists and scan ranges while substituting eventual dependencies. """
         if not self.config.validate():
             return
         values = []
@@ -83,12 +102,14 @@ class Scan():
         return
 
     def scan(self, dataset):
+        """ register an runner using the config and apply it on <dataset> """
         # this is still buggy: https://github.com/tqdm/tqdm/issues/510
         # res = [ runner.run(d) for d in tqdm(dataset) ]
         runner = self.runner(self.config['runner'])
         return concat([ runner.run(d) for d in dataset ], ignore_index=True)
 
     def submit(self,w=None):
+        """ TODO """
         w = os.cpu_count() if not w else w
         if not self.scanset:
             self.build()
