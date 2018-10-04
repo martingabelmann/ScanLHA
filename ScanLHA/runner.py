@@ -6,7 +6,7 @@ from random import randrange,randint
 import os
 from sys import exit
 from numpy import nan
-from math import *
+from math import * # noqa: F403 F401
 from shutil import copy2,copytree, rmtree
 from tempfile import mkdtemp
 from pandas.io.json import json_normalize
@@ -229,7 +229,7 @@ class MicrOmegas(SLHARunner):
             stdoutOmega, stderrOmega = "", ""
             stdoutHB, stderrHB = "", ""
         stdout = stdoutSPheno + stdoutOmega + stdoutHB
-        stderr = stderrSPheno + stderrOmega + stdoutHB
+        stderr = stderrSPheno + stderrOmega + stderrHB
         slha = self.read(fout)
 
         if self.config.get('remove_slha', True):

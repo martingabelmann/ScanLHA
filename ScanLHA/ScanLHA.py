@@ -4,7 +4,7 @@ import sys
 import logging
 import ScanLHA
 from argparse import ArgumentParser
-from math import *
+from math import * # noqa: F401 F403
 
 LIBPATH = os.path.dirname(ScanLHA.__file__)
 def cpath(yml):

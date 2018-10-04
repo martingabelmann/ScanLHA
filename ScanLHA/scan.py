@@ -6,7 +6,7 @@ from numpy import linspace, prod
 from concurrent.futures import ProcessPoolExecutor as Executor
 from concurrent.futures import as_completed
 from tqdm import tqdm
-from math import * # noqa: F403
+from math import * # noqa: F403 F401
 from itertools import product
 from pandas import HDFStore, concat, DataFrame
 from .slha import genSLHA
@@ -24,7 +24,7 @@ def substitute(param_dict):
 
 class Scan():
     """ Scan object
-    Controls a scan over a certain parameter range or an a random scan.
+    Controls a scan over a n-dimensional parameter range using a grid.
     Needs a Config object (see ?ScanLHA.Config) for initialization
     """
     def __init__(self, c):
@@ -108,29 +108,33 @@ class Scan():
         runner = self.runner(self.config['runner'])
         return concat([ runner.run(d) for d in dataset ], ignore_index=True)
 
-    def submit(self,w=None):
-        """ TODO """
-        w = os.cpu_count() if not w else w
+    def submit(self,num_workers=None):
+        """ Start a scan and distribute it on <num_workers> threads.
+        If <num_workers> is omitted, the value of os.cpu_count() is used.
+        Results are stored in self.results.
+        """
+        num_workers  = os.cpu_count() if not num_workers else num_workers
         if not self.scanset:
-            self.build()
+            self.build(num_workers)
 
-        if w == 1:
+        if num_workers == 1:
             runner = self.runner(self.config['runner'])
             self.results = concat([ runner.run(d) for d in tqdm(self.scanset) ], ignore_index=True)
             return
 
-        chunksize = min(int(self.numparas/w),1000)
+        chunksize = min(int(self.numparas/num_workers),1000)
         chunks = range(0, self.numparas, chunksize)
         logging.info('Running on host {}.'.format(os.getenv('HOSTNAME')))
         logging.info('Splitting dataset into %d chunks.' % len(chunks))
-        logging.info('Will work on %d chunks in parallel.' % w)
-        with Executor(w) as executor:
+        logging.info('Will work on %d chunks in parallel.' % num_workers)
+        with Executor(num_workers) as executor:
             futures = [ executor.submit(self.scan, self.scanset[i:i+chunksize]) for i in chunks ]
             progresser = tqdm(as_completed(futures), total=len(chunks), unit = 'chunk')
             self.results = [ r.result() for r in progresser ]
         self.results = concat(self.results, ignore_index=True)
 
     def save(self, filename='store.hdf', path='results'):
+        """ Saves self.results into the HDF file <filename> in the tree <path>. """
         print('Saving to {} ({})'.format(filename,path))
         if path == 'config':
             logging.error('Cant use "config" as path, using "config2" instead.i')
@@ -141,7 +145,13 @@ class Scan():
         store.close()
 
 class RandomScan():
-    def __init__(self, c, runner='SLHA', seed=None):
+    """ Scan object
+    Controls a scan over a n-dimensional parameter range using uniformly distributed numbers.
+    Needs a Config object (see ?ScanLHA.Config) for initialization.
+    The 'runner' config-entry needs to specify the number 'numparas' of randomly generated parameters.
+    """
+
+    def __init__(self, c, seed=None):
         self.config = c
         self.numparas = eval(str(c['runner']['numparas']))
         self.config['runner']['template'] = genSLHA(c['blocks'])
@@ -153,11 +163,15 @@ class RandomScan():
         self.dependent = { p : v['value'] for p,v in c.parameters.items() if v.get('dependent',False) and 'value' in v }
 
     def generate(self):
+        """ generate uniformly distributed numbers for specified SLHA blocks.
+        Substitute the numbers in dependend blocks if necessary.
+        """
         dataset = { p : v for p,v in self.dependent.items() }
         [ dataset.update({ p : uniform(*v)}) for p,v in self.randoms.items() ]
         return substitute(dataset)
 
     def scan(self, numparas, pos=0):
+        """ register an runner using the config and generate <numparas> data samples """
         numresults = 0
         runner = self.runner(self.config['runner'])
         if not runner.initialized:
@@ -174,24 +188,29 @@ class RandomScan():
                     bar.update(1)
         return concat(results, ignore_index=True)
 
-    def submit(self,w=None):
-        w = os.cpu_count() if not w else w
-        self.parallel = w
+    def submit(self,num_workers=None):
+        """ Start a scan and distribute it on <num_workers> threads.
+        If <num_workers> is omitted, the value of os.cpu_count() is used.
+        Results are stored in self.results.
+        """
+        num_workers = os.cpu_count() if not num_workers else num_workers
+        self.parallel = num_workers
         logging.info('Running on host {}.'.format(os.getenv('HOSTNAME')))
-        logging.info('Will work on %d threads in parallel.' % w)
-        if w == 1:
+        logging.info('Will work on %d threads in parallel.' % num_workers)
+        if num_workers == 1:
             self.results = self.scan(self.numparas)
             return
-        paras_per_thread = int(self.numparas/w)
-        remainder = self.numparas % w
-        numparas = [ paras_per_thread for p in range(w) ]
+        paras_per_thread = int(self.numparas/num_workers)
+        remainder = self.numparas % num_workers
+        numparas = [ paras_per_thread for p in range(num_workers) ]
         numparas[-1] += remainder
-        with Executor(w) as executor:
+        with Executor(num_workers) as executor:
             futures = [ executor.submit(self.scan, j, i) for i,j in enumerate(numparas) ]
             self.results = [ r.result() for r in as_completed(futures) ]
         self.results = concat(self.results, ignore_index=True)
 
     def save(self, filename='store.hdf', path='results'):
+        """ Saves self.results into the HDF file <filename> in the tree <path>. """
         if self.results.empty:
             return
         print('Saving to {} ({})'.format(filename,path))

@@ -4,7 +4,7 @@ from pandas import HDFStore
 import logging
 import os
 from .config import Config
-from math import * # noqa: E403
+from math import * # noqa: E403 F401 F403
 from collections import ChainMap
 from argparse import ArgumentParser
 import matplotlib
