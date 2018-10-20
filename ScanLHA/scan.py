@@ -13,6 +13,13 @@ from .slha import genSLHA
 from .runner import RUNNERS
 from numpy.random import seed, uniform
 from time import time
+from glob import glob
+import importlib
+
+if os.path.isdir('runner_plugins'):
+    # dynamically import custom runners from the directory "./runner_plugins"
+    for runner in glob('runner_plugins/*.py'):
+        importlib.import_module(runner.replace('/', '.').replace('.py', ''))
 
 def substitute(param_dict):
     """ recusively apply format_map onto keys of <param_dict> using <param_dict> """
@@ -31,7 +38,7 @@ class Scan():
         self.config = c
         self.config['runner']['template'] = genSLHA(c['blocks'])
         self.getblocks = self.config.get('getblocks', [])
-        self.runner = RUNNERS[self.config['runner'].get('type','SLHA')]
+        self.runner = RUNNERS[self.config['runner'].get('type','SLHARunner')]
         self.scanset = []
         scan = None
         for block in c['blocks']:
@@ -156,7 +163,7 @@ class RandomScan():
         self.numparas = eval(str(c['runner']['numparas']))
         self.config['runner']['template'] = genSLHA(c['blocks'])
         self.getblocks = self.config.get('getblocks', [])
-        self.runner = RUNNERS[self.config['runner'].get('type','SLHA')]
+        self.runner = RUNNERS[self.config['runner'].get('type','RunnerSLHA')]
         self.parallel = 1
         self.seed = round(time()) if not seed else seed
         self.randoms = { p : [eval(str(k)) for k in v['random']] for p,v in c.parameters.items() if 'random' in v }
