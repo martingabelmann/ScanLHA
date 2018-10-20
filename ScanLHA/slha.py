@@ -52,10 +52,10 @@ def parseSLHA(slhafile, blocks=[]):
             slha = pylha.load(f)
     except FileNotFoundError:
         logging.error('File %s not found.' % slhafile)
-        return -2
+        return {}
     except:
         logging.error('Could not parse %s !' % slhafile)
-        return -3
+        return {}
     try:
         slha_blocks = slha['BLOCK']
     except KeyError:

@@ -5,19 +5,25 @@ from .slha import parseSLHA
 from random import randrange,randint
 import os
 from sys import exit
-from numpy import nan
 from math import * # noqa: F403 F401
 from shutil import copy2,copytree, rmtree
 from tempfile import mkdtemp
 from pandas.io.json import json_normalize
 
-class BaseRunner():
+RUNNERS = {}
+
+class Runner_Register(type):
+    def __new__(cls, clsname, bases, attrs):
+        newcls = super(Runner_Register, cls).__new__(cls, clsname, bases, attrs)
+        if hasattr(newcls, 'execute') and hasattr(newcls, 'run'):
+            RUNNERS.update({clsname: newcls})
+        return newcls
+
+class BaseRunner(metaclass=Runner_Register):
     def __init__(self,conf):
         self.config = conf
         self.rundir = os.getcwd()
         self.binaries = []
-        self.binary = ""
-        self.HiggsBounds = False
         self.tmp = False
         self.initialized = False
 
@@ -33,14 +39,18 @@ class BaseRunner():
             os.makedirs(self.rundir)
         tocopy = tocopy if type(tocopy) == list else [tocopy]
         if 'binary' in self.config:
-            self.binary = os.path.join(self.rundir, os.path.basename(self.config['binary']))
+            self.binaries = [os.path.join(self.rundir, os.path.basename(self.config['binary'])), '{input_file}', '{output_file}']
             tocopy.append(self.config['binary'])
-        if 'HiggsBounds' in self.config:
-            tocopy.append(self.config['HiggsBounds'])
-            self.HiggsBounds = os.path.join(self.rundir, os.path.basename(self.config['HiggsBounds']))
-        if 'binaries' in self.config:
-            tocopy += self.config['binaries']
-            self.binaries = [os.path.join(self.rundir, os.path.basename(b)) for b in self.config['binaries']]
+        elif 'binaries' in self.config:
+            if type(self.config['binaries']) != list:
+                logging.error("syntax: runner['binaries'] = [ ['executable', 'arg1', ...], ...]")
+                exit(1)
+            for binary in self.config['binaries']:
+                if type(binary) != list:
+                    logging.error("syntax: runner['binaries'] = [ ['executable', 'arg1', ...], ...]")
+                    exit(1)
+                tocopy += binary[0]
+                self.binaries += [os.path.join(self.rundir, os.path.basename(binary[0]))] + binary[1:]
         for f in tocopy:
             if not os.path.exists(f):
                 logging.error('File/dir {} not found!'.format(f))
@@ -86,22 +96,24 @@ class BaseRunner():
             if err:
                 logging.error('file {} missing?'.format(f))
 
-    def runBinary(self, *args, cwd = None): # noqa
-        proc = Popen(list(args), cwd=cwd, stderr=STDOUT, stdout=PIPE)
+    def runBinary(self, args, cwd = None): # noqa
+        proc = Popen(args, cwd=cwd, stderr=STDOUT, stdout=PIPE)
         try:
             stdout, stderr = proc.communicate(timeout=self.timeout)
         except TimeoutExpired:
             stdout = ''
             stderr = 'Timeout'
             return stdout, stderr
-        stdout = stdout.decode('utf8').strip() if stdout else ' '
-        stderr = stderr.decode('utf8').strip() if stderr else ' '
+        stdout = stdout.decode('utf8').strip() if stdout else ''
+        stderr = stderr.decode('utf8').strip() if stderr else ''
+
         return stdout, stderr
 
-    def execute(self, params):
-        logging.error("exec method not implemented!")
-
     def run(self, params):
+        """ run(params) normalizes the result of BaseRunner.execute(params). It is e.g. used
+        by Scan() and RandomScan() and shoud not be overwritten. To specify the behaviour of
+        your custom runner overwrite the execute() method.
+        """
         return json_normalize(self.execute(params))
 
 class SLHARunner(BaseRunner):
@@ -129,34 +141,44 @@ class SLHARunner(BaseRunner):
         return fin, fout, flog
 
     def read(self, fout):
-        if not os.path.isfile(fout):
-            return {'log': nan}
         slha = parseSLHA(fout, self.blocks)
         if self.config.get('constraints', False) and not self.constraints(slha):
-            slha = {}
+            return {}
         return slha
 
     def execute(self, params):
         fin, fout, flog = self.prepare(params)
         if not all([fin, fout, flog]):
-            return {'log': 'Error preparing files'}
+            return {'log': 'Error preparing files for parameters: {parameters}'.format(params)}
+        log = {
+                'log_stdout': '',
+                'log_stderr': '',
+                'input_parameters': params,
+                'input_file': fin,
+                'output_file': fout,
+                'log_file': flog
+                }
 
-        stdout, stderr = self.runBinary(self.binary, fin, fout)
-        slha = self.read(fout)
-        if 'log' in slha:
-            slha.pop('log')
-        if os.path.isfile(fout) and slha and self.HiggsBounds:
-            stdoutHB, stderrHB = self.runBinary(self.HiggsBounds, 'LandH', 'SLHA', '3', '0', fout)
-            stdout += stdoutHB
-            stderr += stderr
+        slha = True
+        for binary in self.binaries:
+            if not slha:
+                continue
+            if type(binary) == list:
+                # insert file names into the executable command
+                binary = [ b.format(**log) for b in binary ]
+            else:
+                binary = list(binary)
+            stdout, stderr = self.runBinary(binary)
+            log['stderr'] += stderr
+            log['stdout'] += stdout
             slha = self.read(fout)
 
         if self.config.get('remove_slha', True):
             self.removeFile(fin)
             self.removeFile(fout, err=False)
 
-        if self.config.get('keep_log', False) and (stdout or stderr):
-            log = 'parameters: {}\nstdout: {}\nstderr: {}\n\n'.format(params,stdout, stderr)
+        if self.config.get('keep_log', False):
+            log = 'parameters: {parameters}\nstdout: {stdout}\nstderr: {stderr}\n\n'.format(**log)
             slha.update({ 'log': log })
             if self.config.get('logfiles', False):
                 with open(flog, 'w') as logf:
@@ -196,7 +218,7 @@ class MicrOmegas(SLHARunner):
         os.chdir(self.modeldir)
         Popen(['make', 'clean'], stdout=DEVNULL, stderr=DEVNULL, shell=True, cwd=self.modeldir)
         logging.debug('running "make main={}" on MicrOmegas model.'.format(self.config['omegamain']))
-        omegabin = self.config['omegamain'].replace('.cpp','')
+        omegabin = self.config['omegamain']
         i = 0
         while not os.path.isfile(omegabin) and i < 15:
             stdout, stderr = self.runBinary('make', 'main='+self.config['omegamain'], cwd=self.modeldir)
@@ -207,47 +229,4 @@ class MicrOmegas(SLHARunner):
             logging.error(stdout)
             logging.error(stderr)
         os.chdir(self.rundir)
-        self.binaries = [
-                self.binary,
-                os.path.join(self.modeldir, omegabin)
-                ]
-
-    def execute(self, params):
-        fin, fout, flog = self.prepare(params)
-        if not all([fin, fout, flog]):
-            return {'log': 'Error preparing files'}
-
-        stdoutSPheno, stderrSPheno = self.runBinary(self.binaries[0], fin, fout)
-        slha = self.read(fout) # need to read twice to check constraints before running MicrOmegas
-        if 'log' in slha:
-            slha.pop('log')
-        if os.path.isfile(fout) and slha:
-            stdoutOmega, stderrOmega = self.runBinary(self.binaries[1], fout)
-            if self.HiggsBounds:
-                stdoutHB, stderrHB = self.runBinary(self.HiggsBounds, 'LandH', 'SLHA', '3', '0', fout)
-        else:
-            stdoutOmega, stderrOmega = "", ""
-            stdoutHB, stderrHB = "", ""
-        stdout = stdoutSPheno + stdoutOmega + stdoutHB
-        stderr = stderrSPheno + stderrOmega + stderrHB
-        slha = self.read(fout)
-
-        if self.config.get('remove_slha', True):
-            self.removeFile(fin)
-            self.removeFile(fout, err=False)
-
-        if self.config.get('keep_log', False) and (stdout or stderr):
-            log = 'parameters: {}\nstdout: {}\nstderr: {}\n\n'.format(params,stdout, stderr)
-            slha.update({ 'log': log })
-            if self.config.get('logfiles', False):
-                with open(flog, 'w') as logf:
-                    logf.write(log)
-                slha.update({ 'log': flog })
-            logging.debug(log)
-        return slha
-
-RUNNERS = {
-        'Base': BaseRunner,
-        'SLHA': SLHARunner,
-        'MicrOmegas': MicrOmegas
-        }
+        self.binaries.append(os.path.join(self.modeldir, omegabin))
