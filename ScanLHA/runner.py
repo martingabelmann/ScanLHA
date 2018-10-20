@@ -49,8 +49,8 @@ class BaseRunner(metaclass=Runner_Register):
                 if type(binary) != list:
                     logging.error("syntax: runner['binaries'] = [ ['executable', 'arg1', ...], ...]")
                     exit(1)
-                tocopy += binary[0]
-                self.binaries += [os.path.join(self.rundir, os.path.basename(binary[0]))] + binary[1:]
+                tocopy.append(binary[0])
+                self.binaries.append([os.path.join(self.rundir, os.path.basename(binary[0]))] + binary[1:])
         for f in tocopy:
             if not os.path.exists(f):
                 logging.error('File/dir {} not found!'.format(f))
@@ -150,7 +150,7 @@ class SLHARunner(BaseRunner):
         fin, fout, flog = self.prepare(params)
         if not all([fin, fout, flog]):
             return {'log': 'Error preparing files for parameters: {parameters}'.format(params)}
-        log = {
+        slha_base = {
                 'log_stdout': '',
                 'log_stderr': '',
                 'input_parameters': params,
@@ -165,12 +165,13 @@ class SLHARunner(BaseRunner):
                 continue
             if type(binary) == list:
                 # insert file names into the executable command
-                binary = [ b.format(**log) for b in binary ]
+                binary = [ b.format(**slha_base) for b in binary ]
             else:
-                binary = list(binary)
+                binary = [binary]
+            logging.debug("executing {}".format(' '.join(binary)))
             stdout, stderr = self.runBinary(binary)
-            log['stderr'] += stderr
-            log['stdout'] += stdout
+            slha_base['log_stderr'] += stderr
+            slha_base['log_stdout'] += stdout
             slha = self.read(fout)
 
         if self.config.get('remove_slha', True):
@@ -178,12 +179,12 @@ class SLHARunner(BaseRunner):
             self.removeFile(fout, err=False)
 
         if self.config.get('keep_log', False):
-            log = 'parameters: {parameters}\nstdout: {stdout}\nstderr: {stderr}\n\n'.format(**log)
-            slha.update({ 'log': log })
+            slha.update(slha_base)
+            log = 'parameters: {input_parameters}\nstdout: {log_stdout}\nstderr: {log_stderr}\n\n'.format(**slha_base)
             if self.config.get('logfiles', False):
                 with open(flog, 'w') as logf:
                     logf.write(log)
-                slha.update({ 'log': flog })
+                slha.update({ 'log_file': flog })
             logging.debug(log)
         return slha
 
@@ -217,8 +218,9 @@ class MicrOmegas(SLHARunner):
         Popen('yes|make clean', shell=True, stdout=DEVNULL, stderr=DEVNULL, cwd=self.omegadir)
         logging.debug('running "make" on MicrOmegas installtion.')
         i = 0
+        stdout, stderr = "", "MicrOmegas was already built(?)"
         while not os.path.isfile(self.omegadir + '/include/microPath.h') and i < 15:
-            stdout, stderr = self.runBinary('make', cwd=self.omegadir)
+            stdout, stderr = self.runBinary(['make'], cwd=self.omegadir)
             i += 1
         if i >= 5:
             logging.error('Build failed')
@@ -229,13 +231,15 @@ class MicrOmegas(SLHARunner):
         Popen(['make', 'clean'], stdout=DEVNULL, stderr=DEVNULL, shell=True, cwd=self.modeldir)
         logging.debug('running "make main={}" on MicrOmegas model.'.format(omega['main']))
         i = 0
+        stdout, stderr = "", "The model was already built(?)"
         while not os.path.isfile(omega['exec'][0]) and i < 15:
-            stdout, stderr = self.runBinary('make', 'main='+omega['main'], cwd=self.modeldir)
+            stdout, stderr = self.runBinary(['make', 'main='+omega['main']], cwd=self.modeldir)
             i += 1
-        if os.path.isfile(omega['exec'][0]):
+        if i < 15 and i != 0:
+            logging.debug('file {} was build'.format(omega['exec'][0]))
             self.initialized = True
         else:
             logging.error(stdout)
             logging.error(stderr)
         os.chdir(self.rundir)
-        self.binaries.append([os.path.join(self.modeldir, omega['exec'][0]), omega['exec'][1:]])
+        self.binaries.append([os.path.join(self.modeldir, omega['exec'][0])] + omega['exec'][1:])
