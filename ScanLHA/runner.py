@@ -194,15 +194,25 @@ class MicrOmegas(SLHARunner):
         self.timeout = conf.get('timeout', 18000)
         self.tpl = conf['template']
         self.blocks = conf.get('getblocks', [])
-        if 'micromegas' not in self.config or not os.path.exists(self.config['micromegas']):
-            logging.error('need to specify "micromegas" sources files')
+        if 'micromegas' not in self.config:
+            logging.error('need to specify "micromegas" config')
             exit(1)
-        if 'modelname' not in self.config:
+        omega = self.config['micromegas']
+        if 'src' not in omega or not os.path.exists(omega['src']):
+            logging.error('need to specify micromegas "src" directory to build from')
+            exit(1)
+        if 'modelname' not in omega:
             logging.error('need to specify "modelname" name')
             exit(1)
-        self.makedirs(tocopy = self.config['micromegas'])
-        self.omegadir = os.path.join(self.rundir,os.path.basename(self.config['micromegas']))
-        self.modeldir = os.path.join(self.omegadir, self.config['modelname'])
+        if 'main' not in omega:
+            logging.error('need to specify "main" cpp file to build')
+            exit(1)
+        if 'exec' not in omega:
+            logging.error('need to specify "exec"utable created by the build followed by its arguments (Popen list syntax)')
+            exit(1)
+        self.makedirs(tocopy = omega['src'])
+        self.omegadir = os.path.join(self.rundir,os.path.basename(omega['src']))
+        self.modeldir = os.path.join(self.omegadir, omega['modelname'])
         logging.debug('running "make clean" on MicrOmegas installtion.')
         Popen('yes|make clean', shell=True, stdout=DEVNULL, stderr=DEVNULL, cwd=self.omegadir)
         logging.debug('running "make" on MicrOmegas installtion.')
@@ -217,16 +227,15 @@ class MicrOmegas(SLHARunner):
         logging.debug('running "make clean" on MicrOmegas model.')
         os.chdir(self.modeldir)
         Popen(['make', 'clean'], stdout=DEVNULL, stderr=DEVNULL, shell=True, cwd=self.modeldir)
-        logging.debug('running "make main={}" on MicrOmegas model.'.format(self.config['omegamain']))
-        omegabin = self.config['omegamain']
+        logging.debug('running "make main={}" on MicrOmegas model.'.format(omega['main']))
         i = 0
-        while not os.path.isfile(omegabin) and i < 15:
-            stdout, stderr = self.runBinary('make', 'main='+self.config['omegamain'], cwd=self.modeldir)
+        while not os.path.isfile(omega['exec'][0]) and i < 15:
+            stdout, stderr = self.runBinary('make', 'main='+omega['main'], cwd=self.modeldir)
             i += 1
-        if os.path.isfile(omegabin):
+        if os.path.isfile(omega['exec'][0]):
             self.initialized = True
         else:
             logging.error(stdout)
             logging.error(stderr)
         os.chdir(self.rundir)
-        self.binaries.append(os.path.join(self.modeldir, omegabin))
+        self.binaries.append([os.path.join(self.modeldir, omega['exec'][0]), omega['exec'][1:]])
