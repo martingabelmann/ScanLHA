@@ -1,6 +1,6 @@
 ---
 runner:
-  binary: '../../bin/SPheno'
+  binaries: []
   tmpfs: '/dev/shm/slha/'
   keep_log: False
   logfile: False
@@ -23,24 +23,24 @@ blocks:
   - block: SPhenoInput
     lines:
       - {id: 1, value: -2}  # error level
-      - {id: 7, value: 1}  # 1/0 skips/includes two loop Higgs masses
+      - {id: 7, value: 0}  # 1/0 skips/includes two loop Higgs masses
       - {id: 9, value: 1}  # two loop corrections in gaugeless limit
       - {id: 11, value: 1}  # calculate branching ratios
       - {id: 12, value: 1.0E-04}  # threshold for writing branching ratios
       - {id: 13, value: 3}  # 3-Body decays: 0/1/2/3 none/fermions/scalars/both
       - {id: 31, value: -1}  # -1 dynamical GUT scale
-      - {id: 38, value: 1}  # 1- or 2-Loop RGEs
+      - {id: 38, value: 2}  # 1- or 2-Loop RGEs
       - {id: 20, value: 1}  # mass uncreatanties
-      - {id: 51, value: 0}  # Write Output in CKM basis
+      - {id: 51, value: 1}  # Write Output in CKM basis
       - {id: 55, value: 1}  # Calculate loop corrected masses
       - {id: 57, value: 1}  # Calculate low energy constraints
       - {id: 66, value: 1}  # 1/0 turn Two-Scale Matching on/off
       - {id: 67, value: 1}  # effective Higgs mass calculation: 1/2 auto/always
-      - {id: 75, value: 0}  # Write WHIZARD files
+      - {id: 75, value: 1}  # Write WHIZARD files
       - {id: 76, value: 1}  # Write HiggsBounds file
       - {id: 77, value: 1}  # Output for MicrOmegas
-      - {id: 78, value: 0}  # Output for MadGraph
-      - {id: 79, value: 0}  # Write WCXF files
+      - {id: 78, value: 1}  # Output for MadGraph
+      - {id: 79, value: 1}  # Write WCXF files
       - {id: 515, value: 1}  # write parameters at GUT scale
       - {id: 520, value: 1}  # Write effective Higgs couplings
       - {id: 530, value: 1}  # Write Blocks for Vevacious

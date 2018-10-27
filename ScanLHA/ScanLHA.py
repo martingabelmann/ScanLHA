@@ -6,11 +6,10 @@ import ScanLHA
 from argparse import ArgumentParser
 from math import * # noqa: F401 F403
 
-LIBPATH = os.path.dirname(ScanLHA.__file__)
 def cpath(yml):
     if os.path.isfile(yml):
         return yml
-    default = os.path.join(LIBPATH,'configs',yml)
+    default = os.path.join(os.path.dirname(ScanLHA.__file__),'configs',yml)
     if os.path.isfile(default):
         return default
     return yml

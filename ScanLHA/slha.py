@@ -3,7 +3,7 @@ import logging
 import pylha
 
 def genSLHA(blocks):
-    """ generate SLHA """
+    """ Generate string in SLHA format from 'blocks' entry of a ScanLHA.Config instance. """
     out = ''
     for block in blocks:
         out += 'BLOCK {}\n'.format(block['block'])
@@ -42,9 +42,9 @@ def mergedicts(l, d):
 def parseSLHA(slhafile, blocks=[]):
     """ turn the content of an SLHA file into a dictionary
     slhafile : path tp file
-    blocks   : list of BLOCKs to read, if empty all blocks are read
+    blocks   : list of BLOCKs (strings) to read, if empty all blocks are read
 
-    uses pylha but give a more meaningfun output
+    uses pylha but gives a more meaningfun output
     the result is stored in a nested dictionary.
     """
     try:

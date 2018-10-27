@@ -230,3 +230,12 @@ class RandomScan():
         store.get_storer(path).attrs.seed = self.seed
         store.get_storer(path).attrs.parallel = self.parallel
         store.close()
+
+class FileScan(Scan):
+    """ Performs a scan based on input file(s) from a previous scan
+    Needs a Config object (see ?ScanLHA.Config) for initialization
+    """
+    def __init__(self, c):
+        self.config = c
+        self.getblocks = self.config.get('getblocks', [])
+        self.runner = RUNNERS[self.config['runner'].get('type','SLHARunner')]
