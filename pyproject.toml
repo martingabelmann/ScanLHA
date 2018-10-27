@@ -12,7 +12,7 @@ classifiers = ["License :: OSI Approved :: GNU General Public License v3 or late
 description-file = "README.md"
 
 [tool.flit.scripts]
-ScanLHA      = "ScanLHA.ScanLHA:main"
+ScanLHA      = "ScanLHA.ScanLHA:ScanLHA"
 PlotLHA      = "ScanLHA.PlotLHA:main"
 EditLHA      = "ScanLHA.EditLHA:Edit"
 MergeLHA     = "ScanLHA.MergeLHA:Merge"

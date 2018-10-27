@@ -1,21 +1,68 @@
 #!/usr/bin/env python3
+"""
+Perform scans from the command line using YAML config files.
+"""
 import os
 import sys
 import logging
-import ScanLHA
+from ScanLHA import Config, Scan, RandomScan
+from ScanLHA import __file__ as libpath
 from argparse import ArgumentParser
 from math import * # noqa: F401 F403
+
+__all__ = ['ScanLHA']
 
 def cpath(yml):
     if os.path.isfile(yml):
         return yml
-    default = os.path.join(os.path.dirname(ScanLHA.__file__),'configs',yml)
+    default = os.path.join(os.path.dirname(libpath),'configs',yml)
     if os.path.isfile(default):
         return default
     return yml
 
-def main():
-    parser = ArgumentParser(description='Perform a (S)LHA scan.')
+def ScanLHA():
+    """
+    Basic usage: `ScanLHA --help`.
+
+    Takes at least one argument that is the path to a config YAML file.
+
+    The variety of arguments may increase if parameters in the config file are specified with the `argument` attribute.
+    This way it is possible to define the values/scan ranges of specific parameters through command line arguments
+    while other may be defined in the config file.
+
+    __Basic scan.yml__
+
+        ---
+        runner:
+            binaries:
+              - [ '/bin/SPhenoMSSM', '{input_file}', '{output_file}']
+              - [ '/bin/HiggsBounds', 'LandH', 'SLHA', '3', '0', '{output_file}']
+            keep_log: true
+            timeout: 90
+            scantype: random
+            numparas: 50000
+            constraints: # Higgs mass constraint
+              - "result['MASS']['values']['25']<127.09"
+              - "result['MASS']['values']['25']>123.09"
+
+        blocks:
+            - block: MINPAR
+              lines:
+                  - parameter: 'MSUSY'
+                    latex: '$M_{SUSY}$ (GeV)'
+                    id: 1
+                    random: [500,2500]
+                  - parameter: 'TanBeta'
+                    latex: '$\\tan\\beta$'
+                    argument: 'value'
+
+    Then start the scan e.g. with: `ScanLHA scan.yml --TanBeta 10 result10.h5`
+
+    Alternatively one may specify `values: [1, 2, 10]` for TanBeta instead of `arguments`
+    or even `scan: [1, 50, 50]` to scan over TanBeta and save the result into one single file.
+
+    """
+    parser = ArgumentParser(description='Perform an (S)LHA scan.')
     parser.add_argument("config", type=str, metavar="config.yml",
             help="path to YAML file config.yml containing config for the scan. Must be the very first argument.")
     parser.add_argument("output", nargs='?', default="config.h5",
@@ -35,11 +82,11 @@ def main():
         parser.parse_args(["-h"])
 
     logging.debug('loading config {}'.format(sys.argv[1]))
-    scanconf = ScanLHA.Config(sys.argv[1])
+    scanconf = Config(sys.argv[1])
     defaultfile = scanconf['runner'].get('defaults', 'SPheno.yml')
     if defaultfile:
         logging.debug('loading default config {}'.format(defaultfile))
-        c = ScanLHA.Config(cpath(defaultfile))
+        c = Config(cpath(defaultfile))
         if not c.valid:
             logging.error('No valid default config.')
             sys.exit(1)
@@ -91,8 +138,8 @@ def main():
             os.remove(HDFSTORE)
 
     if c['runner'].get('scantype', 'straight') == 'random':
-        scan = ScanLHA.RandomScan(c)
+        scan = RandomScan(c)
     else:
-        scan = ScanLHA.Scan(c)
+        scan = Scan(c)
     scan.submit(args.parallel)
     scan.save(filename=HDFSTORE)
