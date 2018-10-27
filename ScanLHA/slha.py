@@ -3,7 +3,7 @@ import logging
 import pylha
 
 def genSLHA(blocks):
-    """ Generate string in SLHA format from 'blocks' entry of a ScanLHA.Config instance. """
+    """ Generate string in SLHA format from `'blocks'` entry of a `ScanLHA.config.Config` instance. """
     out = ''
     for block in blocks:
         out += 'BLOCK {}\n'.format(block['block'])
@@ -40,11 +40,14 @@ def mergedicts(l, d):
                 d[k] = l[k]
 
 def parseSLHA(slhafile, blocks=[]):
-    """ turn the content of an SLHA file into a dictionary
-    slhafile : path tp file
-    blocks   : list of BLOCKs (strings) to read, if empty all blocks are read
+    """
+    Turn the content of an SLHA file into a dictionary
 
-    uses pylha but gives a more meaningfun output
+    `slhafile` : path tp file
+
+    `blocks`   : list of BLOCKs (strings) to read, if empty all blocks are read
+
+    Uses [pylha](https://github.com/DavidMStraub/pylha pylha) but gives a more meaningful output
     the result is stored in a nested dictionary.
     """
     try:
@@ -62,7 +65,7 @@ def parseSLHA(slhafile, blocks=[]):
         slha_blocks = {}
     if blocks:
         slha_blocks = { b : v for b,v in slha_blocks.items() if b in blocks }
-    try:
+    try: # TODO convert into valid slha instead of dropping
         slha_blocks.pop('HiggsBoundsInputHiggsCouplingsBosons')
         slha_blocks.pop('HiggsBoundsInputHiggsCouplingsFermions')
     except KeyError:
