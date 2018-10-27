@@ -10,9 +10,43 @@ from shutil import copy2,copytree, rmtree
 from tempfile import mkdtemp
 from pandas.io.json import json_normalize
 
+__all__ = ['RUNNERS', 'BaseRunner', 'SLHARunner', 'MicrOmegas']
+
 RUNNERS = {}
+"""
+Contains all available runner classes.
+
+Runners that are stored in the directory `runner_plugins` and are a child of `ScanLHA.runner.BaseRunner` are automatically added to this variable.
+
+To add your own custom runner create the `runner_plugins` directory in you working directory and add e.g. the file `myrunner.py` with e.g. the content:
+
+    from ScanLHA.runner import BaseRunner
+
+    class MyRunner(BaseRunner):
+        def __init__(self, conf):
+            super().__init__(conf)
+
+        def execute(self, params):
+            # do your computation using the
+            # parameter set stored in the dict `params`
+            return {'param1': myresult1,  ...}
+
+To use that runner, set
+
+    ---
+    runner:
+       type: MyRunner
+       ...
+
+in your config.
+
+The default runner for each scan is the `ScanLHA.runner.SLHARunner`.
+"""
 
 class Runner_Register(type):
+    """
+    Add each new runner to the `RUNNERS` variable.
+    """
     def __new__(cls, clsname, bases, attrs):
         newcls = super(Runner_Register, cls).__new__(cls, clsname, bases, attrs)
         if hasattr(newcls, 'execute') and hasattr(newcls, 'run'):
@@ -20,7 +54,17 @@ class Runner_Register(type):
         return newcls
 
 class BaseRunner(metaclass=Runner_Register):
+    """
+    Every runner must be a child of this.
+
+    Needs a Config instance for initialization.
+    """
     def __init__(self,conf):
+        """
+        Basic initialization.
+
+        For a correct behaviour use `super().__init__(conf)` in the `__init__` of your child runner.
+        """
         self.config = conf
         self.rundir = os.getcwd()
         self.binaries = []
@@ -28,6 +72,11 @@ class BaseRunner(metaclass=Runner_Register):
         self.initialized = False
 
     def makedirs(self, tocopy=[]):
+        """
+          * Create temporary directories (default: `/dev/shm/run<runnerid>`).
+
+          * Copy all binaries listed in `self.config['binaries']` to the temporary directory
+        """
         if 'tmpfs' not in self.config:
             if os.path.exists('/dev/shm/'):
                 self.config['tmpfs'] = '/dev/shm/'
@@ -65,6 +114,7 @@ class BaseRunner(metaclass=Runner_Register):
         self.tmp = True
 
     def cleanup(self):
+        """ remove temporary directory """
         if not self.config.get('cleanup', False) or not self.tmp:
             return
         try:
@@ -80,6 +130,7 @@ class BaseRunner(metaclass=Runner_Register):
         self.cleanup()
 
     def constraints(self, result):
+        """ Check if the data point `result` fulfills the constraints of the list `self.config['constraints']`."""
         try:
             if not all(map(eval, self.config['constraints'])):
                 return
@@ -90,6 +141,7 @@ class BaseRunner(metaclass=Runner_Register):
 
     @staticmethod
     def removeFile(f, err=True):
+        """ Removes a file `f`. """
         try:
             os.remove(f)
         except FileNotFoundError:
@@ -97,6 +149,14 @@ class BaseRunner(metaclass=Runner_Register):
                 logging.error('file {} missing?'.format(f))
 
     def runBinary(self, args, cwd = None): # noqa
+        """
+        Execute `args` using `Popen`.
+
+        Returns `(stdout, stderr)`.
+
+        `stderr` is set to `'Timeout'` if `self.timeout` is exceeded.
+        """
+
         proc = Popen(args, cwd=cwd, stderr=STDOUT, stdout=PIPE)
         try:
             stdout, stderr = proc.communicate(timeout=self.timeout)
@@ -109,23 +169,46 @@ class BaseRunner(metaclass=Runner_Register):
 
         return stdout, stderr
 
+    def execute(self, params):
+        """ This method specifies what the runner should do with the single data pint `params`. """
+        pass
+
     def run(self, params):
-        """ run(params) normalizes the result of BaseRunner.execute(params). It is e.g. used
-        by Scan() and RandomScan() and shoud not be overwritten. To specify the behaviour of
-        your custom runner overwrite the execute() method.
+        """
+        Normalizes the result of `ScanLHA.runner.BaseRunner.execute`.
+
+        It is e.g. used by `ScanLHA.scan.Scan` and should not be overwritten by child runners.
+
+        To specify the behaviour of your custom runner overwrite the `ScanLHA.runner.BaseRunner.execute` method.
         """
         return json_normalize(self.execute(params))
 
 class SLHARunner(BaseRunner):
+    """
+    Runner that runs binaries with (S)LHA input/output.
+    """
     def __init__(self,conf):
+        """
+        `self.tpl=conf['template']` should be a string containing patterns
+        compatible with `conf['template'].format_map(params)` for a
+        given set of parameters `params`.
+        """
         super().__init__(conf)
         self.timeout = conf.get('timeout', 10)
+        """ Timeout for Popen """
         self.tpl = conf['template']
         self.blocks = conf.get('getblocks', [])
         self.makedirs()
         self.initialized = True
 
     def prepare(self, params):
+        """
+        Generate input and output file names.
+
+        Write the input file for the parameter dict `params` using the template `self.tpl`.
+
+        Returns the filenames `('inputfile', 'outputfile', 'logfile')`.
+        """
         fname = str(randrange(10**10))
         fin  = os.path.join(self.rundir, fname + '.in')
         fout = os.path.join(self.rundir, fname + '.out')
@@ -141,12 +224,31 @@ class SLHARunner(BaseRunner):
         return fin, fout, flog
 
     def read(self, fout):
+        """
+        Reads the file `fout` using `ScanLHA.slha.parseSLHA` and checks if all constraints `self.constraints` are fulfilled.
+
+        If at least one constraint is not fulfilled, an empty result (dict) is returned.
+        """
         slha = parseSLHA(fout, self.blocks)
         if self.config.get('constraints', False) and not self.constraints(slha):
             return {}
         return slha
 
     def execute(self, params):
+        """
+        * Prepare all files for the run with the parameters `params` (dict).
+        * iterate over the binaries in `self.binaries`
+          * check for fulfilled constraints
+
+        Example for `self.binaries` that passes results trough the different runs:
+
+            config['runner']['binaries'] = [
+                ['./SPheno', '{input_file}', '{output_file}'],
+                ['./HiggsBounds', '{output_file}']
+            ]
+
+        The patterns `{input_file}`, `{output_file}` and `{log_file}` are available and are replaced by the result of `ScanLHA.runner.SLHARunner.prepare`.
+        """
         fin, fout, flog = self.prepare(params)
         if not all([fin, fout, flog]):
             return {'log': 'Error preparing files for parameters: {parameters}'.format(params)}
@@ -189,9 +291,35 @@ class SLHARunner(BaseRunner):
         return slha
 
 class MicrOmegas(SLHARunner):
+    """
+    Runner for MicrOmegas based on the `ScanLHA.runner.SLHARunner`.
+
+    Works exactly the same as `ScanLHA.runner.SLHARunner` but builds the MicrOmegas src files in the temporary runner directory during initialization.
+    """
+
     def __init__(self,conf):
         super(SLHARunner, self).__init__(conf)
-        """need to compile micromegas for each runner since it uses hard coded paths"""
+        """
+        One needs to compile MicrOmegas for each runner since it uses hard coded paths.
+        In order to do so, put the following information in your runner config:
+            runner:
+                type: MicrOmegas
+                micromegas:
+                    src: '/home/user/micrOMEGAS/src' # source directory to copy (run make clean before)
+                    modelname: 'SplitNMSSM' # model-dir to join (run make clean before)
+                    main: 'CalcOmegaDD.cpp' # cpp file to build
+                    exec: ['CalcOmegaDD', '{input_file}'] # entry for runner['binaries']
+
+        The resulting binary is appended to the list `runner['binaries']`.
+
+        If you use e.g. SPheno to generate input for MicrOmegas, you may want to add
+
+        `['./SPheno', '{input_file}', '{output_file}']`
+
+        to `runner['binaries']` and change the `exec` option to use the `{output_file}` instead.
+
+        Additional `'binaries'` may be specified as well.
+        """
         self.timeout = conf.get('timeout', 18000)
         self.tpl = conf['template']
         self.blocks = conf.get('getblocks', [])

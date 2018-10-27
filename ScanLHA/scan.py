@@ -180,7 +180,7 @@ class RandomScan():
         self.numparas = eval(str(c['runner']['numparas']))
         self.config['runner']['template'] = genSLHA(c['blocks'])
         self.getblocks = self.config.get('getblocks', [])
-        self.runner = RUNNERS[self.config['runner'].get('type','RunnerSLHA')]
+        self.runner = RUNNERS[self.config['runner'].get('type','SLHARunner')]
         self.parallel = os.cpu_count()
         self.seed = round(time()) if not seed else seed
         self.randoms = { p : [eval(str(k)) for k in v['random']] for p,v in c.parameters.items() if 'random' in v }
