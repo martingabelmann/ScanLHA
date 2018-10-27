@@ -1,3 +1,6 @@
+"""
+Maps (S)LHA syntax onto YAML.
+"""
 from numpy import linspace, logspace, geomspace, arange
 from numpy.random import uniform, normal
 import logging
@@ -52,11 +55,11 @@ class Config(dict):
         ---
         runner:
         binaries:
-            - [ '/home/user/SPheno/bin/SPhenoSplitNMSSM', '{input_file}', '{output_file}']
+            - [ '/home/user/SPheno/bin/SPhenoMSSM', '{input_file}', '{output_file}']
             - [ '/home/user/HiggsBounds-4.3.1/HiggsBounds',  'LandH', 'SLHA', '3', '0', '{output_file}']
         micromegas:
             src: '/home/user/micrOMEGAS/src'
-            modelname: 'SplitNMSSM'
+            modelname: 'MSSM'
             main: 'CalcOmegaDD.cpp'
             exec: ['CalcOmegaDD', '{output_file}']
         type: MicrOmegas

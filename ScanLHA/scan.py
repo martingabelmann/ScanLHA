@@ -1,4 +1,7 @@
 # import lzma
+"""
+Control random- and grid-scans.
+"""
 import logging
 from collections import ChainMap
 import os

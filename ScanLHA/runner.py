@@ -1,3 +1,6 @@
+"""
+Control programs that need (S)LHA input.
+"""
 from collections import defaultdict
 import logging
 from subprocess import Popen, STDOUT, PIPE, DEVNULL, TimeoutExpired

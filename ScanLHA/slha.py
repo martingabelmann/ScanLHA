@@ -1,3 +1,6 @@
+"""
+Parsing and writing of (S)LHA files.
+"""
 from collections import defaultdict
 import logging
 import pylha

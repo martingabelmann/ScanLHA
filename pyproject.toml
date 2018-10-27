@@ -13,6 +13,6 @@ description-file = "README.md"
 
 [tool.flit.scripts]
 ScanLHA      = "ScanLHA.ScanLHA:ScanLHA"
-PlotLHA      = "ScanLHA.PlotLHA:main"
+PlotLHA      = "ScanLHA.PlotLHA:Plot"
 EditLHA      = "ScanLHA.EditLHA:Edit"
 MergeLHA     = "ScanLHA.MergeLHA:Merge"

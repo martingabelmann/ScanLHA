@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+"""
+Plot ScanLHA scan results.
+"""
 from pandas import HDFStore
 # from IPython import embed
 import logging
@@ -14,7 +17,117 @@ matplotlib.use('Agg')
 # matplotlib.use('ps')
 import matplotlib.pyplot as plt # noqa: E402
 
-def main():
+__all__ = ['Plot', 'PlotConf']
+
+axisdefault = {
+        'boundaries' : [],
+        'lognorm' : False,
+        'vmin' : None,
+        'vmax' : None,
+        'ticks' :  [],
+        'colorbar' : False,
+        'colorbar_orientation': 'horizontal',
+        'label' : None,
+        'datafile' : None
+}
+"""
+Default values for all axes.
+"""
+
+class PlotConf(ChainMap):
+    """ Config class which allows for recursively defined defaults """
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.maps.append({
+            'x-axis': axisdefault,
+            'y-axis': axisdefault,
+            'z-axis': axisdefault,
+            'colorbar_only': False,
+            'constraints': [],
+            'legend': {
+                'loc' : 'right',
+                'bbox_to_anchor' : [1.5, 0.5]
+                },
+            'hline': False,
+            'vline': False,
+            'lw': 1.0,
+            's': None,
+            'title': False,
+            'label': None,
+            'cmap': None,
+            'alpha' : 1.0,
+            'datafile': 'results.h5',
+            'fontsize': 28,
+            'rcParams': {
+                'font.size': 28,
+                'text.usetex': True,
+                'font.weight' : 'bold',
+                'text.latex.preamble': [
+                    r'\usepackage{xcolor}',
+                    r'\usepackage{nicefrac}',
+                    r'\usepackage{amsmath}',
+                    r'\usepackage{units}',
+                    r'\usepackage{sfmath} \boldmath']
+                },
+
+            'dpi': 300,
+            'textbox': {}
+            })
+
+    def new_child(self, child = {}):
+        for ax in ['x-axis','y-axis','z-axis']:
+            if type(child.get(ax, {})) == str:
+                child[ax] = ChainMap({ 'field': child[ax] }, self[ax])
+            else:
+                child[ax] = ChainMap(child.get(ax,{}), self[ax])
+        return self.__class__(child, *self.maps)
+
+
+def Plot():
+    """
+    Basic usage: `PlotLHA --help`
+
+    Requires a YAML config file that specifies at least the `'scatterplot'` dict with the list '`plots`'.
+
+      * Automatically uses the `'latex'` attribute of specified LHA blocks for labels.
+      * Fields for x/y/z axes can be specified by either `BLOCKNAME.values.LHAID` or the specified `'parameter'` attribute.
+      * New fields to plot can be computed using existing fields
+      * Optional constraints on the different fields may be specified
+      * Various options can be passed to `matplotlib`s `legend`, `scatter`, `colorbar` functions.
+      * Optional ticks can be set manually.
+
+    __Example config.yml__
+
+        ---
+        # assumes the presence of an appropriate `'block'` config.
+        scatterplot:
+            conf:
+                datafile: "mssm.h5"
+            plots:
+                - filename: "mssm_TanBetaMSUSYmH.png"
+                  y-axis: {field: TanBeta}
+                  x-axis: {field: MSUSY, lognorm: True}
+                  z-axis: {field: MASS.values.25, colorbar: True}
+                - filename: "mssm_mhiggs.png"
+                  x-axis: {
+                    field: MSUSY,
+                    label: 'Massparameter (GeV)'
+                    }
+                  y-axis: {
+                    lognorm: True,
+                    label: '$m_{SUSY}$ (GeV)'
+                    }
+                  plots:
+                      - y-axis: MASS.values.25
+                        color: red
+                        label: '$m_{h_1}$'
+                      - y-axis: MASS.values.26
+                        color: green
+                        label: '$m_{h_2}$'
+                      - y-axis: MASS.values.35
+                        color: blue
+                        label: '$m_{A}$'
+    """
     parser = ArgumentParser(description='Plot ScanLHA results.')
     parser.add_argument("config", type=str,
             help="path to YAML file config.yml containing the plot (and optional scan) config.")
@@ -26,66 +139,6 @@ def main():
     logging.getLogger().setLevel(logging.INFO)
     if args.verbose:
         logging.getLogger().setLevel(logging.DEBUG)
-
-    class PlotConf(ChainMap):
-        """ config class which allows for recursively defined defaults """
-        axisdefault = {
-                'boundaries' : [],
-                'lognorm' : False,
-                'vmin' : None,
-                'vmax' : None,
-                'ticks' :  [],
-                'colorbar' : False,
-                'colorbar_orientation': 'horizontal',
-                'label' : None,
-                'datafile' : None
-                }
-
-        def __init__(self, *args):
-            super().__init__(*args)
-            self.maps.append({
-                'x-axis': self.axisdefault,
-                'y-axis': self.axisdefault,
-                'z-axis': self.axisdefault,
-                'colorbar_only': False,
-                'constraints': [],
-                'legend': {
-                    'loc' : 'right',
-                    'bbox_to_anchor' : [1.5, 0.5]
-                    },
-                'hline': False,
-                'vline': False,
-                'lw': 1.0,
-                's': None,
-                'title': False,
-                'label': None,
-                'cmap': None,
-                'alpha' : 1.0,
-                'datafile': 'results.h5',
-                'fontsize': 28,
-                'rcParams': {
-                    'font.size': 28,
-                    'text.usetex': True,
-                    'font.weight' : 'bold',
-                    'text.latex.preamble': [
-                        r'\usepackage{xcolor}',
-                        r'\usepackage{nicefrac}',
-                        r'\usepackage{amsmath}',
-                        r'\usepackage{units}',
-                        r'\usepackage{sfmath} \boldmath']
-                    },
-
-                'dpi': 300,
-                'textbox': {}
-                })
-
-        def new_child(self, child = {}):
-            for ax in ['x-axis','y-axis','z-axis']:
-                if type(child.get(ax, {})) == str:
-                    child[ax] = ChainMap({ 'field': child[ax] }, self[ax])
-                else:
-                    child[ax] = ChainMap(child.get(ax,{}), self[ax])
-            return self.__class__(child, *self.maps)
 
     c = Config(args.config)
     DIR = os.path.dirname(os.path.abspath(args.config)) + '/'
