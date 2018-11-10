@@ -3,20 +3,26 @@
 Interactively load/edit/save/plot HDF files.
 """
 from pandas import read_hdf, DataFrame # noqa: F401
-from IPython import embed
+try:
+    from IPython import embed
+    ipy = True
+except:
+    import code
+    ipyt = False
 from glob import glob
 import os
 from matplotlib import pyplot as plt # noqa: F401
 from argparse import ArgumentParser
-
-def Edit():
-    """
+__pdoc__ = {}
+__pdoc__['Edit'] = """
     Usage: EditLHA [-h] h5file.h5 [h5file.h5 ...]
 
     Loads the hdf files and saves them into the variable DATA.
 
     An IPython session with imported matplotlib.pyplot is started.
     """
+
+def Edit():
     parser = ArgumentParser(description='Interactively load/edit/save/plot HDF files.')
     parser.add_argument('files', metavar='h5file.h5', type=str, nargs='+',
             help='HDF file(s) to edit.')
@@ -42,4 +48,9 @@ def Edit():
         HDFDIR = os.path.dirname(os.path.abspath(HDFFILES[0])) + '/'
         print('Changing working directory to {}.\n'.format(HDFDIR))
         os.chdir(HDFDIR)
-    embed(header=header)
+
+    if ipy:
+        embed(header=header)
+    else:
+        print(header)
+        code.interact(local=locals())
