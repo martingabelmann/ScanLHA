@@ -22,6 +22,8 @@ __pdoc__['Edit'] = """
     An IPython session with imported matplotlib.pyplot is started.
     """
 
+__all__ = ['Edit']
+
 def Edit():
     parser = ArgumentParser(description='Interactively load/edit/save/plot HDF files.')
     parser.add_argument('files', metavar='h5file.h5', type=str, nargs='+',
