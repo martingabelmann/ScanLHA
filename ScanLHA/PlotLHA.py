@@ -17,7 +17,7 @@ matplotlib.use('Agg')
 # matplotlib.use('ps')
 import matplotlib.pyplot as plt # noqa: E402
 
-__all__ = ['Plot', 'PlotConf']
+__all__ = ['Plot', 'PlotConf', 'axisdefault']
 
 axisdefault = {
         'boundaries' : [],
@@ -35,7 +35,7 @@ Default values for all axes.
 """
 
 class PlotConf(ChainMap):
-    """ Config class which allows for recursively defined defaults """
+    """ Config class which allows for successively defined defaults """
     def __init__(self, *args):
         super().__init__(*args)
         self.maps.append({
@@ -99,34 +99,50 @@ def Plot():
     __Example config.yml__
 
         ---
-        # assumes the presence of an appropriate `'block'` config.
         scatterplot:
-            conf:
-                datafile: "mssm.h5"
-            plots:
-                - filename: "mssm_TanBetaMSUSYmH.png"
-                  y-axis: {field: TanBeta}
-                  x-axis: {field: MSUSY, lognorm: True}
-                  z-axis: {field: MASS.values.25, colorbar: True}
-                - filename: "mssm_mhiggs.png"
-                  x-axis: {
-                    field: MSUSY,
-                    label: 'Massparameter (GeV)'
-                    }
-                  y-axis: {
-                    lognorm: True,
-                    label: '$m_{SUSY}$ (GeV)'
-                    }
-                  plots:
-                      - y-axis: MASS.values.25
-                        color: red
-                        label: '$m_{h_1}$'
-                      - y-axis: MASS.values.26
-                        color: green
-                        label: '$m_{h_2}$'
-                      - y-axis: MASS.values.35
-                        color: blue
-                        label: '$m_{A}$'
+          conf:
+            datafile: "mssm.h5"
+            newfields:
+              TanBeta: "DATA['HMIX.values.2'].apply(abs).apply(tan)"
+            constraints:
+              - "PDATA['TREELEVELUNITARITYwTRILINEARS.values.1']<0.5"
+              # enforces e.g. unitarity
+          plots:
+              - filename: "mssm_TanBetaMSUSYmH.png"
+                # one scatterplot
+                y-axis: {field: TanBeta, label: '$\\tan\\beta$'}
+                x-axis:
+                  field: MSUSY
+                  label: "$m_{SUSY}$ (TeV)$"
+                  lognorm: True
+                  ticks:
+                    - [1000,2000,3000,4000]
+                    - ['$1$','$2','$3','$4$']
+                z-axis:
+                  field: MASS.values.25
+                  colorbar: True
+                  label: "$m_h$ (GeV)"
+                alpha: 0.8
+                textbox: {x: 0.9, y: 0.3, text: 'some info'}
+              - filename: "mssm_mhiggs.png"
+                # multiple lines in one plot with legend
+                constraints: [] # ignore all global constraints
+                x-axis:
+                  field: MSUSY,
+                  label: 'Massparameter (GeV)'
+                y-axis:
+                  lognorm: True,
+                  label: '$m_{SUSY}$ (GeV)'
+                plots:
+                    - y-axis: MASS.values.25
+                      color: red
+                      label: '$m_{h_1}$'
+                    - y-axis: MASS.values.26
+                      color: green
+                      label: '$m_{h_2}$'
+                    - y-axis: MASS.values.35
+                      color: blue
+                      label: '$m_{A}$'
     """
     parser = ArgumentParser(description='Plot ScanLHA results.')
     parser.add_argument("config", type=str,

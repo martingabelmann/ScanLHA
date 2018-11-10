@@ -265,6 +265,8 @@ class FileScan(Scan):
     Performs a scan based on input file(s) from a previous scan.
 
     Needs a Config object (see `ScanLHA.config.Config`) for initialization.
+
+    TODO: not yet functional
     """
     def __init__(self, c):
         self.config = c

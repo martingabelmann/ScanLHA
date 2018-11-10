@@ -1,5 +1,5 @@
 """
-Maps (S)LHA syntax onto YAML.
+Maps (S)LHA syntax onto YAML as well as stores configs for scanning and plotting.
 """
 from numpy import linspace, logspace, geomspace, arange
 from numpy.random import uniform, normal
