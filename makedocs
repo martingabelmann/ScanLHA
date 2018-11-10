@@ -1,0 +1,16 @@
+#!/bin/bash
+set -e
+rm -rfv docs
+mkdir docs 
+echo "Documentation created with pdoc" > docs/README.md
+
+mkdir -p tmpdocs
+cd tmpdocs
+
+pdoc --all ScanLHA
+cd ScanLHA
+mv -v index.md ../../README.md
+
+for i in *.md; do mv -v $i ../../docs/${i/.m./.}; done
+cd ../../
+rm -rfv tmpdocs

@@ -3,6 +3,7 @@
 Perform parameter scans with HEP tools that use (not only) (S)LHA in- and output.
 
 __Use Case__
+
 Typical tool-chains in high-energy physics are the pass-through of one SLHA-input file from spectrum generators e.g. SPheno over e.g. HiggsBounds to e.g. micrOmegas which themself return SLHA-output files.
 To provide the correct input for the various tools between the different steps as well as to enable further processing the SLHA format needs to be parsed and stored in a storage-efficient tabular format.
 In a phenomenological study, most of the physical parameters as well as config flags within a considered scenario are kept constant while only a few O(1-20) parameters are varied in different ways (grid- or randomly scanned, more sophisticated scanning techniques are planned in the future).
@@ -23,13 +24,12 @@ __Scanning__
 
 The config YAML file must contain two dictionaries ``runner`` and ``blocks`` controlling
 the type of scan/tools to be used as well as the SLHA blocks that have to be present/scanned in the input file.
-In order to simplify the distribution of similar scans through grid-computing software, it is possible to declare 'argument'
+In order to simplify the distribution of similar scans through grid-computing software, it is possible to declare ``argument``
 SLHA entries. The value/scanrange of these entries can be set from within command line arguments.
 
 
 A basic config.yml file to run SPheno and HiggsBounds may look like
 
-    ```yaml
         ---
         runner:
           binaries:
@@ -57,8 +57,8 @@ A basic config.yml file to run SPheno and HiggsBounds may look like
                     latex: '$\\mu$ (GeV)'
                     id: 2
                     value: 300
-    ```
-Where the ``id`` is the SLHA-id of the parameter ``parameter`` in the block ``block`` which either takes the constant value ``value``, is ''random``ly chosen or ``scan``ed in a grid.
+
+Where the ``id`` is the SLHA-id of the parameter ``parameter`` in the block ``block`` which either takes the constant value ``value``, is ``random``ly chosen or ``scan``ed in a grid.
 The presence of the new command line argument ``TanBeta`` may be  verified with ``ScanLHA config.yml --help``.
 A scan that runs the SPheno->HiggsBounds chain in 2 parallel threads is started with ``ScanLHA config.yml -p 2 --TanBeta 4 scantanbeta4.h5`` (by default os.cpucount() is used for ``-p``).
 For this purpose, 2 copies of the binaries are stored in 2 randomly named directories in ``runner['tmpfs']`` (default: ``/dev/shm/``) where the input and output files are generated.
@@ -86,59 +86,61 @@ that specify the ``filename`` and data to plot.
 
 
 An example configuration may look like
-      ```yaml
-      ---
-      scatterplot:
-        conf:
-          datafile: "mssm.h5"
-          newfields:
-            TanBeta: "DATA['HMIX.values.2'].apply(abs).apply(tan)"
-                     # the string is passed to eval
-          constraints:
-            - "PDATA['TREELEVELUNITARITYwTRILINEARS.values.1']<0.5"
-            # enforces e.g. unitarity
-        plots:
-            - filename: "mssm_TanBetaMSUSYmH.png"
-              # one scatterplot
-              y-axis: {field: TanBeta, label: '$\tan\beta$'}
-              x-axis:
-                field: MSUSY
-                label: "$m_{SUSY}$ (TeV)$"
-                lognorm: True
-                ticks:
-                  - [1000,2000,3000,4000]
-                  - ['$1$','$2','$3','$4$']
-              z-axis:
-                field: MASS.values.25
-                colorbar: True
-                label: "$m_h$ (GeV)"
-              alpha: 0.8
-              textbox: {x: 0.9, y: 0.3, text: 'some info'}
-            - filename: "mssm_mhiggs.png"
-              # multiple lines in one plot with legend
-              constraints: [] # ignore all global constraints
-              x-axis:
-                field: MSUSY,
-                label: 'Massparameter (GeV)'
-              y-axis:
-                lognorm: True,
-                label: '$m_{SUSY}$ (GeV)'
-              plots:
-                  - y-axis: MASS.values.25
-                    color: red
-                    label: '$m_{h_1}$'
-                  - y-axis: MASS.values.26
-                    color: green
-                    label: '$m_{h_2}$'
-                  - y-axis: MASS.values.35
-                    color: blue
-                    label: '$m_{A}$'
-      ```
+
+        ---
+        scatterplot:
+          conf:
+            datafile: "mssm.h5"
+            newfields:
+              TanBeta: "DATA['HMIX.values.2'].apply(abs).apply(tan)"
+                       # the string is passed to eval
+            constraints:
+              - "PDATA['TREELEVELUNITARITYwTRILINEARS.values.1']<0.5"
+              # enforces e.g. unitarity
+          plots:
+              - filename: "mssm_TanBetaMSUSYmH.png"
+                # one scatterplot
+                y-axis: {field: TanBeta, label: '$\tan\beta$'}
+                x-axis:
+                  field: MSUSY
+                  label: "$m_{SUSY}$ (TeV)$"
+                  lognorm: True
+                  ticks:
+                    - [1000,2000,3000,4000]
+                    - ['$1$','$2','$3','$4$']
+                z-axis:
+                  field: MASS.values.25
+                  colorbar: True
+                  label: "$m_h$ (GeV)"
+                alpha: 0.8
+                textbox: {x: 0.9, y: 0.3, text: 'some info'}
+              - filename: "mssm_mhiggs.png"
+                # multiple lines in one plot with legend
+                constraints: [] # ignore all global constraints
+                x-axis:
+                  field: MSUSY,
+                  label: 'Massparameter (GeV)'
+                y-axis:
+                  lognorm: True,
+                  label: '$m_{SUSY}$ (GeV)'
+                plots:
+                    - y-axis: MASS.values.25
+                      color: red
+                      label: '$m_{h_1}$'
+                    - y-axis: MASS.values.26
+                      color: green
+                      label: '$m_{h_2}$'
+                    - y-axis: MASS.values.35
+                      color: blue
+                      label: '$m_{A}$'
 
 __Editing and Merging__
+
 See ``EditLHA --help`` and ``MergeLHA --help``.
 
+
 __Scanning with Non-SLHA Tools__
+
 See the API docs of the runner module.
 
 """
@@ -147,3 +149,4 @@ from .config import Config
 from  .runner import RUNNERS
 from  .slha import genSLHA, parseSLHA
 __version__ = '0.1'
+__all__ = []
