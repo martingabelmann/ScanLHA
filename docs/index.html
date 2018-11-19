@@ -1073,24 +1073,29 @@ table {
   <h1 class="title"><span class="name">ScanLHA</span> module</h1>
   <p>Perform parameter scans with HEP tools that use (not only) (S)LHA in- and output.</p>
 <p><strong>Use Case</strong></p>
-<p>Typical tool-chains in high-energy physics are the pass-through of one SLHA-input file from spectrum generators e.g. SPheno over e.g. HiggsBounds to e.g. micrOmegas which themself return SLHA-output files.
-To provide the correct input for the various tools between the different steps as well as to enable further processing the SLHA format needs to be parsed and stored in a storage-efficient tabular format.
-In a phenomenological study, most of the physical parameters as well as config flags within a considered scenario are kept constant while only a few O(1-20) parameters are varied in different ways (grid- or randomly scanned, more sophisticated scanning techniques are planned in the future).
-Due to the large combinatorics, the scan is done in parallel and may even be distributed over different machines (using e.g. Sun Grid Engine).
+<p>Typical tool-chains in high-energy physics (HEP) are the pass-through of one SLHA-input file from spectrum generators, e.g. <a href="https://spheno.hepforge.org/">SPheno</a>, to further HEP tools like <a href="https://higgsbounds.hepforge.org/">HiggsBounds</a> and/or <a href="https://lapth.cnrs.fr/micromegas/">micrOmegas</a> which themself return SLHA-output files.<br />
+To provide correct input for the various tools between the different steps as well as to enable further processing (e.g. plotting) the SLHA format needs to be parsed and stored in a storage-efficient tabular format.<br />
+In a phenomenological study, most of the physical parameters as well as config flags within a considered scenario are kept constant while only a few O(1-20) parameters are varied in different ways (grid- or randomly scanned, more sophisticated scanning techniques are planned in the future).<br />
+Due to the large combinatorics, the scan may be done in parallel and even be distributed over different machines (using e.g. Sun Grid Engine, the usage of <a href="https://github.com/dask/distributed">dask.distributed</a> is planned for the future).<br />
 The outcome is one (or multiple) HDF files (to be merged) that may undergo further editing before the results are visualized in 2D or 3D scatter plots.</p>
+<p><strong>Installing</strong></p>
+<div class="codehilite"><pre><span></span>    pip3 install ScanLHA
+</pre></div>
+
+
 <p><strong>Executables</strong></p>
 <ul>
-<li><code>ScanLHA</code> - Perform (S)LHA scan/s and save to HDF file/s.</li>
-<li><code>PlotLHA</code> - Plot ScanLHA results from HDF file/s.</li>
-<li><code>EditLHA</code> - Interactively load/edit/save/plot HDF file/s.</li>
-<li><code>MergeLHA</code> - Merge multiple HDF files into one file.</li>
+<li><a href="https://martingabelmann.github.io/ScanLHA/ScanLHA.m.html">ScanLHA</a> - Perform (S)LHA scan/s and save to HDF file/s.</li>
+<li><a href="https://martingabelmann.github.io/ScanLHA/PlotLHA.m.html">PlotLHA</a> - Plot ScanLHA results from HDF file/s.</li>
+<li><a href="https://martingabelmann.github.io/ScanLHA/EditLHA.m.html">EditLHA</a> - Interactively load/edit/save/plot HDF file/s.</li>
+<li><a href="https://martingabelmann.github.io/ScanLHA/MergeLHA.m.html">MergeLHA</a> - Merge multiple HDF files into one file.</li>
 </ul>
-<p>The executables <code>ScanLHA</code> and <code>PlotLHA</code> take a YAML input config file.</p>
+<p>The executables <code>ScanLHA</code> and <code>PlotLHA</code> take a YAML input <a href="https://martingabelmann.github.io/ScanLHA/config.m.html">config</a> file.</p>
 <p><strong>Scanning</strong></p>
-<p>The config YAML file must contain two dictionaries <code>runner</code> and <code>blocks</code> controlling
-the type of scan/tools to be used as well as the SLHA blocks that have to be present/scanned in the input file.
+<p>The <a href="https://martingabelmann.github.io/ScanLHA/config.m.html">config</a> YAML file must contain two dictionaries <code>runner</code> and <code>blocks</code> controlling
+the type of scan/tools to be used as well as the SLHA blocks that have to be present/scanned in the input file. <br />
 In order to simplify the distribution of similar scans through grid-computing software, it is possible to declare <code>argument</code>
-SLHA entries. The value/scanrange of these entries can be set from within command line arguments.</p>
+SLHA entries. The value/scanrange of these entries can be set from within command line arguments.  </p>
 <p>A basic config.yml file to run SPheno and HiggsBounds may look like</p>
 <div class="codehilite"><pre><span></span>    ---
     runner:
@@ -1113,7 +1118,7 @@ SLHA entries. The value/scanrange of these entries can be set from within comman
                 id: 1
                 random: [500,3500]
               - parameter: &#39;TanBeta&#39;
-                latex: &#39;$   aneta$&#39;
+                latex: &#39;$\tan\beta$&#39;
                 argument: &#39;value&#39;
               - parameter: &#39;mu&#39;
                 latex: &#39;$\mu$ (GeV)&#39;
@@ -1122,18 +1127,20 @@ SLHA entries. The value/scanrange of these entries can be set from within comman
 </pre></div>
 
 
-<p>Where the <code>id</code> is the SLHA-id of the parameter <code>parameter</code> in the block <code>block</code> which either takes the constant value <code>value</code>, is <code>random</code>ly chosen or <code>scan</code>ed in a grid.
-The presence of the new command line argument <code>TanBeta</code> may be  verified with <code>ScanLHA config.yml --help</code>.
-A scan that runs the SPheno-&gt;HiggsBounds chain in 2 parallel threads is started with <code>ScanLHA config.yml -p 2 --TanBeta 4 scantanbeta4.h5</code> (by default os.cpucount() is used for <code>-p</code>).
-For this purpose, 2 copies of the binaries are stored in 2 randomly named directories in <code>runner['tmpfs']</code> (default: <code>/dev/shm/</code>) where the input and output files are generated.
+<p>Where the <code>id</code> is the SLHA-id of the parameter <code>parameter</code> in the block <code>block</code> which either takes the constant value <code>value</code>, is <code>random</code>ly chosen or <code>scan</code>ed in a grid.<br />
+The presence of the new command line argument <code>TanBeta</code> may be  verified with <code>ScanLHA config.yml --help</code>.<br />
+A scan that runs the SPheno-&gt;HiggsBounds chain in 2 parallel threads is started with <code>ScanLHA config.yml -p 2 --TanBeta 4 scantanbeta4.h5</code> (by default os.cpucount() is used for <code>-p</code>).<br />
+For this purpose, 2 copies of the binaries are stored in 2 randomly named directories in <code>runner['tmpfs']</code> (default: <code>/dev/shm/</code>) where the input and output files are generated.<br />
 Alternatively one may specify <code>values: [1, 2, 10]</code> for the line <code>TanBeta</code> instead of <code>argument</code>
-or even <code>scan: [1, 50, 50]</code> to scan over <code>TanBeta</code> (from 1 to 50 in 50 steps for each random value of <code>MSUSY</code>) and save the result into one single file (likewise, the <code>argument</code> option can be set to <code>scan</code> or <code>random</code> and according numbers may be provided from the command line).</p>
+or even <code>scan: [1, 50, 50]</code> to scan over <code>TanBeta</code> (from 1 to 50 in 50 steps for each random value of <code>MSUSY</code>) and save the result into one single file (likewise, the <code>argument</code> option can be set to <code>scan</code> or <code>random</code> and according numbers may be provided from the command line). Grid scans can have a <code>distribution</code> attribute equaling <code>linear,log,geom,arange,uniform</code> or <code>normal</code>.  </p>
+<p>The executables in <code>runner['binaries']</code> are run subsequential for each parameter point using given arguments. For each point a randomly named <code>{input_file}</code> is generated and may be passed as argument
+to the executables. Likewise, the <code>{output_file}</code> is supposed to be written by the executables and eventually parsed afterwards. One may also make direct use of Python (or C-Python) implementations instead of using executables by implementing a <a href="https://martingabelmann.github.io/ScanLHA/runner.m.html">runner module</a>.</p>
 <p><strong>Plotting</strong></p>
 <p>The config.yml used for the scan may also contain a <code>scatterplot</code> dictionary (but can also be contained in a separate file).</p>
 <p>Plotting capabilities are:</p>
 <ul>
 <li>Automatically uses the <code>latex</code> attribute of specified LHA <code>blocks</code> for labels.</li>
-<li>Fields for x/y/z axes can be specified by either <code>BLOCKNAME.values.LHAID``` or the specified</code>parameter`` attribute.</li>
+<li>Fields for x/y/z axes can be specified by either <code>BLOCKNAME.values.LHAID</code> or the specified <code>parameter</code> attribute.</li>
 <li>New fields to plot can be computed using existing fields saved in <code>DATA</code></li>
 <li>Optional constraints on the different fields may be specified using  <code>PDATA</code></li>
 <li>Various options can be passed to <code>matplotlib</code>s <code>legend</code>, <code>scatter</code>, <code>colorbar</code> functions.</li>
@@ -1153,11 +1160,11 @@ that specify the <code>filename</code> and data to plot.</p>
                    # the string is passed to eval
         constraints:
           - &quot;PDATA[&#39;TREELEVELUNITARITYwTRILINEARS.values.1&#39;]&lt;0.5&quot;
-          # enforces e.g. unitarity
+          # enforces unitarity on the sample
       plots:
           - filename: &quot;mssm_TanBetaMSUSYmH.png&quot;
             # one scatterplot
-            y-axis: {field: TanBeta, label: &#39;$      aneta$&#39;}
+            y-axis: {field: TanBeta, label: &#39;$\tan\beta$&#39;}
             x-axis:
               field: MSUSY
               label: &quot;$m_{SUSY}$ (TeV)$&quot;
@@ -1195,8 +1202,14 @@ that specify the <code>filename</code> and data to plot.</p>
 
 <p><strong>Editing and Merging</strong></p>
 <p>See <code>EditLHA --help</code> and <code>MergeLHA --help</code>.</p>
-<p><strong>Scanning with Non-SLHA Tools</strong></p>
-<p>See the API docs of the runner module.</p>
+<p><strong>Scanning with other (non-)SLHA Tools</strong></p>
+<p>See the API docs of the <a href="https://martingabelmann.github.io/ScanLHA/runner.m.html">runner module</a>.</p>
+<p><strong>Related Tools</strong></p>
+<ul>
+<li><a href="https://github.com/fstaub/xBIT">xBIT</a></li>
+<li><a href="https://sarah.hepforge.org/SSP.html">SSP</a>/<a href="https://github.com/fstaub/pySSP">pySSP</a></li>
+<li>ask me if you wish to be listed here</li>
+</ul>
   
   <p class="source_link"><a href="javascript:void(0);" onclick="toggle('source-ScanLHA', this);">Show source &equiv;</a></p>
   <div id="source-ScanLHA" class="source">
@@ -1206,28 +1219,34 @@ that specify the <code>filename</code> and data to plot.</p>
 
 <span class="sd">__Use Case__</span>
 
-<span class="sd">Typical tool-chains in high-energy physics are the pass-through of one SLHA-input file from spectrum generators e.g. SPheno over e.g. HiggsBounds to e.g. micrOmegas which themself return SLHA-output files.</span>
-<span class="sd">To provide the correct input for the various tools between the different steps as well as to enable further processing the SLHA format needs to be parsed and stored in a storage-efficient tabular format.</span>
-<span class="sd">In a phenomenological study, most of the physical parameters as well as config flags within a considered scenario are kept constant while only a few O(1-20) parameters are varied in different ways (grid- or randomly scanned, more sophisticated scanning techniques are planned in the future).</span>
-<span class="sd">Due to the large combinatorics, the scan is done in parallel and may even be distributed over different machines (using e.g. Sun Grid Engine).</span>
+<span class="sd">Typical tool-chains in high-energy physics (HEP) are the pass-through of one SLHA-input file from spectrum generators, e.g. [SPheno](https://spheno.hepforge.org/), to further HEP tools like [HiggsBounds](https://higgsbounds.hepforge.org/) and/or [micrOmegas](https://lapth.cnrs.fr/micromegas/) which themself return SLHA-output files.  </span>
+<span class="sd">To provide correct input for the various tools between the different steps as well as to enable further processing (e.g. plotting) the SLHA format needs to be parsed and stored in a storage-efficient tabular format.  </span>
+<span class="sd">In a phenomenological study, most of the physical parameters as well as config flags within a considered scenario are kept constant while only a few O(1-20) parameters are varied in different ways (grid- or randomly scanned, more sophisticated scanning techniques are planned in the future).  </span>
+<span class="sd">Due to the large combinatorics, the scan may be done in parallel and even be distributed over different machines (using e.g. Sun Grid Engine, the usage of [dask.distributed](https://github.com/dask/distributed) is planned for the future).  </span>
 <span class="sd">The outcome is one (or multiple) HDF files (to be merged) that may undergo further editing before the results are visualized in 2D or 3D scatter plots.</span>
+
+
+<span class="sd">__Installing__</span>
+
+<span class="sd">        pip3 install ScanLHA</span>
+
 
 <span class="sd">__Executables__</span>
 
-<span class="sd"> * ``ScanLHA`` - Perform (S)LHA scan/s and save to HDF file/s.</span>
-<span class="sd"> * ``PlotLHA`` - Plot ScanLHA results from HDF file/s.</span>
-<span class="sd"> * ``EditLHA`` - Interactively load/edit/save/plot HDF file/s.</span>
-<span class="sd"> * ``MergeLHA`` - Merge multiple HDF files into one file.</span>
+<span class="sd"> * [ScanLHA](https://martingabelmann.github.io/ScanLHA/ScanLHA.m.html) - Perform (S)LHA scan/s and save to HDF file/s.</span>
+<span class="sd"> * [PlotLHA](https://martingabelmann.github.io/ScanLHA/PlotLHA.m.html) - Plot ScanLHA results from HDF file/s.</span>
+<span class="sd"> * [EditLHA](https://martingabelmann.github.io/ScanLHA/EditLHA.m.html) - Interactively load/edit/save/plot HDF file/s.</span>
+<span class="sd"> * [MergeLHA](https://martingabelmann.github.io/ScanLHA/MergeLHA.m.html) - Merge multiple HDF files into one file.</span>
 
-<span class="sd">The executables ``ScanLHA`` and ``PlotLHA`` take a YAML input config file.</span>
+<span class="sd">The executables ``ScanLHA`` and ``PlotLHA`` take a YAML input [config](https://martingabelmann.github.io/ScanLHA/config.m.html) file.</span>
 
 
 <span class="sd">__Scanning__</span>
 
-<span class="sd">The config YAML file must contain two dictionaries ``runner`` and ``blocks`` controlling</span>
-<span class="sd">the type of scan/tools to be used as well as the SLHA blocks that have to be present/scanned in the input file.</span>
+<span class="sd">The [config](https://martingabelmann.github.io/ScanLHA/config.m.html) YAML file must contain two dictionaries ``runner`` and ``blocks`` controlling</span>
+<span class="sd">the type of scan/tools to be used as well as the SLHA blocks that have to be present/scanned in the input file.   </span>
 <span class="sd">In order to simplify the distribution of similar scans through grid-computing software, it is possible to declare ``argument``</span>
-<span class="sd">SLHA entries. The value/scanrange of these entries can be set from within command line arguments.</span>
+<span class="sd">SLHA entries. The value/scanrange of these entries can be set from within command line arguments.  </span>
 
 
 <span class="sd">A basic config.yml file to run SPheno and HiggsBounds may look like</span>
@@ -1253,19 +1272,22 @@ that specify the <code>filename</code> and data to plot.</p>
 <span class="sd">                    id: 1</span>
 <span class="sd">                    random: [500,3500]</span>
 <span class="sd">                  - parameter: &#39;TanBeta&#39;</span>
-<span class="sd">                    latex: &#39;$\tan\beta$&#39;</span>
+<span class="sd">                    latex: &#39;$\\tan\\beta$&#39;</span>
 <span class="sd">                    argument: &#39;value&#39;</span>
 <span class="sd">                  - parameter: &#39;mu&#39;</span>
 <span class="sd">                    latex: &#39;$\\mu$ (GeV)&#39;</span>
 <span class="sd">                    id: 2</span>
 <span class="sd">                    value: 300</span>
 
-<span class="sd">Where the ``id`` is the SLHA-id of the parameter ``parameter`` in the block ``block`` which either takes the constant value ``value``, is ``random``ly chosen or ``scan``ed in a grid.</span>
-<span class="sd">The presence of the new command line argument ``TanBeta`` may be  verified with ``ScanLHA config.yml --help``.</span>
-<span class="sd">A scan that runs the SPheno-&gt;HiggsBounds chain in 2 parallel threads is started with ``ScanLHA config.yml -p 2 --TanBeta 4 scantanbeta4.h5`` (by default os.cpucount() is used for ``-p``).</span>
-<span class="sd">For this purpose, 2 copies of the binaries are stored in 2 randomly named directories in ``runner[&#39;tmpfs&#39;]`` (default: ``/dev/shm/``) where the input and output files are generated.</span>
+<span class="sd">Where the ``id`` is the SLHA-id of the parameter ``parameter`` in the block ``block`` which either takes the constant value ``value``, is ``random``ly chosen or ``scan``ed in a grid.  </span>
+<span class="sd">The presence of the new command line argument ``TanBeta`` may be  verified with ``ScanLHA config.yml --help``.  </span>
+<span class="sd">A scan that runs the SPheno-&gt;HiggsBounds chain in 2 parallel threads is started with ``ScanLHA config.yml -p 2 --TanBeta 4 scantanbeta4.h5`` (by default os.cpucount() is used for ``-p``).  </span>
+<span class="sd">For this purpose, 2 copies of the binaries are stored in 2 randomly named directories in ``runner[&#39;tmpfs&#39;]`` (default: ``/dev/shm/``) where the input and output files are generated.  </span>
 <span class="sd">Alternatively one may specify ``values: [1, 2, 10]`` for the line ``TanBeta`` instead of ``argument``</span>
-<span class="sd">or even ``scan: [1, 50, 50]`` to scan over ``TanBeta`` (from 1 to 50 in 50 steps for each random value of ``MSUSY``) and save the result into one single file (likewise, the ``argument`` option can be set to ``scan`` or ``random`` and according numbers may be provided from the command line).</span>
+<span class="sd">or even ``scan: [1, 50, 50]`` to scan over ``TanBeta`` (from 1 to 50 in 50 steps for each random value of ``MSUSY``) and save the result into one single file (likewise, the ``argument`` option can be set to ``scan`` or ``random`` and according numbers may be provided from the command line). Grid scans can have a ``distribution`` attribute equaling ``linear,log,geom,arange,uniform`` or ``normal``.  </span>
+
+<span class="sd">The executables in ``runner[&#39;binaries&#39;]`` are run subsequential for each parameter point using given arguments. For each point a randomly named ``{input_file}`` is generated and may be passed as argument</span>
+<span class="sd">to the executables. Likewise, the ``{output_file}`` is supposed to be written by the executables and eventually parsed afterwards. One may also make direct use of Python (or C-Python) implementations instead of using executables by implementing a [runner module](https://martingabelmann.github.io/ScanLHA/runner.m.html).</span>
 
 <span class="sd">__Plotting__</span>
 
@@ -1274,7 +1296,7 @@ that specify the <code>filename</code> and data to plot.</p>
 <span class="sd">Plotting capabilities are:</span>
 
 <span class="sd"> * Automatically uses the ``latex`` attribute of specified LHA ``blocks`` for labels.</span>
-<span class="sd">  * Fields for x/y/z axes can be specified by either ``BLOCKNAME.values.LHAID``` or the specified ``parameter`` attribute.</span>
+<span class="sd">  * Fields for x/y/z axes can be specified by either ``BLOCKNAME.values.LHAID`` or the specified ``parameter`` attribute.</span>
 <span class="sd">  * New fields to plot can be computed using existing fields saved in ``DATA``</span>
 <span class="sd">  * Optional constraints on the different fields may be specified using  ``PDATA``</span>
 <span class="sd">  * Various options can be passed to ``matplotlib``s ``legend``, ``scatter``, ``colorbar`` functions.</span>
@@ -1298,11 +1320,11 @@ that specify the <code>filename</code> and data to plot.</p>
 <span class="sd">                       # the string is passed to eval</span>
 <span class="sd">            constraints:</span>
 <span class="sd">              - &quot;PDATA[&#39;TREELEVELUNITARITYwTRILINEARS.values.1&#39;]&lt;0.5&quot;</span>
-<span class="sd">              # enforces e.g. unitarity</span>
+<span class="sd">              # enforces unitarity on the sample</span>
 <span class="sd">          plots:</span>
 <span class="sd">              - filename: &quot;mssm_TanBetaMSUSYmH.png&quot;</span>
 <span class="sd">                # one scatterplot</span>
-<span class="sd">                y-axis: {field: TanBeta, label: &#39;$\tan\beta$&#39;}</span>
+<span class="sd">                y-axis: {field: TanBeta, label: &#39;$\\tan\\beta$&#39;}</span>
 <span class="sd">                x-axis:</span>
 <span class="sd">                  field: MSUSY</span>
 <span class="sd">                  label: &quot;$m_{SUSY}$ (TeV)$&quot;</span>
@@ -1341,9 +1363,16 @@ that specify the <code>filename</code> and data to plot.</p>
 <span class="sd">See ``EditLHA --help`` and ``MergeLHA --help``.</span>
 
 
-<span class="sd">__Scanning with Non-SLHA Tools__</span>
+<span class="sd">__Scanning with other (non-)SLHA Tools__</span>
 
-<span class="sd">See the API docs of the runner module.</span>
+<span class="sd">See the API docs of the [runner module](https://martingabelmann.github.io/ScanLHA/runner.m.html).</span>
+
+
+<span class="sd">__Related Tools__</span>
+
+<span class="sd"> * [xBIT](https://github.com/fstaub/xBIT)</span>
+<span class="sd"> * [SSP](https://sarah.hepforge.org/SSP.html)/[pySSP](https://github.com/fstaub/pySSP)</span>
+<span class="sd"> * ask me if you wish to be listed here</span>
 
 <span class="sd">&quot;&quot;&quot;</span>
 <span class="kn">from</span> <span class="nn">.scan</span> <span class="kn">import</span> <span class="n">Scan</span><span class="p">,</span> <span class="n">RandomScan</span>
