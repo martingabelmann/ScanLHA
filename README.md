@@ -1,4 +1,4 @@
-Module ScanLHA
+ScanLHA
 --------------
 Perform parameter scans with HEP tools that use (not only) (S)LHA in- and output.
 
@@ -137,14 +137,3 @@ See ``EditLHA --help`` and ``MergeLHA --help``.
 __Scanning with Non-SLHA Tools__
 
 See the API docs of the runner module.
-
-Sub-modules
------------
-    ScanLHA.EditLHA
-    ScanLHA.MergeLHA
-    ScanLHA.PlotLHA
-    ScanLHA.ScanLHA
-    ScanLHA.config
-    ScanLHA.runner
-    ScanLHA.scan
-    ScanLHA.slha
