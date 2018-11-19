@@ -164,5 +164,5 @@ from .scan import Scan, RandomScan
 from .config import Config
 from  .runner import RUNNERS
 from  .slha import genSLHA, parseSLHA
-__version__ = '0.1'
+__version__ = '0.2'
 __all__ = []
