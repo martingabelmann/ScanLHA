@@ -232,6 +232,9 @@ class SLHARunner(BaseRunner):
 
         If at least one constraint is not fulfilled, an empty result (dict) is returned.
         """
+        if not os.path.isfile(fout):
+            return {}
+
         slha = parseSLHA(fout, self.blocks)
         if self.config.get('constraints', False) and not self.constraints(slha):
             return {}
