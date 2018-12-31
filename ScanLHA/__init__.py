@@ -56,6 +56,8 @@ A basic config.yml file to run SPheno and HiggsBounds may look like
                     latex: '$M_{SUSY}$ (GeV)'
                     id: 1
                     random: [500,3500]
+                    distribution: 'uniform' # default
+                    norm: 1 # default
                   - parameter: 'TanBeta'
                     latex: '$\\tan\\beta$'
                     argument: 'value'
@@ -69,7 +71,8 @@ The presence of the new command line argument ``TanBeta`` may be  verified with 
 A scan that runs the SPheno->HiggsBounds chain in 2 parallel threads is started with ``ScanLHA config.yml -p 2 --TanBeta 4 scantanbeta4.h5`` (by default os.cpucount() is used for ``-p``).  
 For this purpose, 2 copies of the binaries are stored in 2 randomly named directories in ``runner['tmpfs']`` (default: ``/dev/shm/``) where the input and output files are generated.  
 Alternatively one may specify ``values: [1, 2, 10]`` for the line ``TanBeta`` instead of ``argument``
-or even ``scan: [1, 50, 50]`` to scan over ``TanBeta`` (from 1 to 50 in 50 steps for each random value of ``MSUSY``) and save the result into one single file (likewise, the ``argument`` option can be set to ``scan`` or ``random`` and according numbers may be provided from the command line). Grid scans can have a ``distribution`` attribute equaling ``linear,log,geom,arange,uniform`` or ``normal``.  
+or even ``scan: [1, 50, 50]`` to scan over ``TanBeta`` (from 1 to 50 in 50 steps for each random value of ``MSUSY``) and save the result into one single file (likewise, the ``argument`` option can be set to ``scan`` or ``random`` and according numbers may be provided from the command line). 
+Grid scans can have a ``distribution`` attribute equaling ``linear,log,geom,arange,uniform`` or ``normal`` while for random scans all common functions from ``numpy.random`` are avavailable an take the list ``random``as arguments.
 
 The executables in ``runner['binaries']`` are run subsequential for each parameter point using given arguments. For each point a randomly named ``{input_file}`` is generated and may be passed as argument
 to the executables. Likewise, the ``{output_file}`` is supposed to be written by the executables and eventually parsed afterwards. One may also make direct use of Python (or C-Python) implementations instead of using executables by implementing a [runner module](https://martingabelmann.github.io/ScanLHA/runner.m.html).
@@ -164,5 +167,5 @@ from .scan import Scan, RandomScan, FileScan
 from .config import Config
 from  .runner import RUNNERS
 from  .slha import genSLHA, parseSLHA
-__version__ = '0.2'
+__version__ = '0.3'
 __all__ = []
