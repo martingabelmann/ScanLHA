@@ -5,7 +5,7 @@ Perform scans from the command line using YAML config files.
 import os
 import sys
 import logging
-from ScanLHA import Config, Scan, RandomScan
+from ScanLHA import Config, Scan, RandomScan, FileScan
 from ScanLHA import __file__ as libpath
 from argparse import ArgumentParser
 from math import * # noqa: F401 F403
@@ -136,9 +136,12 @@ def ScanLHA():
             logging.info("removing {}".format(HDFSTORE))
             os.remove(HDFSTORE)
 
-    if c['runner'].get('scantype', 'straight') == 'random':
-        scan = RandomScan(c)
-    else:
-        scan = Scan(c)
+    scantypes = {
+            'straight': Scan,
+            'random': RandomScan,
+            'file': FileScan
+            }
+
+    scan = scantypes[c['runner'].get('scantype','straight')](c)
     scan.submit(args.parallel)
     scan.save(filename=HDFSTORE)

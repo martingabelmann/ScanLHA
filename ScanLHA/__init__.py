@@ -160,7 +160,7 @@ __Related Tools__
  * ask me if you wish to be listed here
 
 """
-from .scan import Scan, RandomScan
+from .scan import Scan, RandomScan, FileScan
 from .config import Config
 from  .runner import RUNNERS
 from  .slha import genSLHA, parseSLHA

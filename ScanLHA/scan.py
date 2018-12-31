@@ -14,7 +14,7 @@ from itertools import product
 from pandas import HDFStore, concat, DataFrame
 from .slha import genSLHA
 from .runner import RUNNERS
-from numpy.random import seed, uniform
+from numpy.random import seed, uniform, normal, exponential, poisson
 from time import time
 from glob import glob
 import importlib
@@ -186,17 +186,18 @@ class RandomScan():
         self.runner = RUNNERS[self.config['runner'].get('type','SLHARunner')]
         self.parallel = os.cpu_count()
         self.seed = round(time()) if not seed else seed
-        self.randoms = { p : [eval(str(k)) for k in v['random']] for p,v in c.parameters.items() if 'random' in v }
+        self.distributions = {'uniform': uniform, 'exponential': exponential, 'normal': normal, 'poisson': poisson}
+        self.randoms = { p : { 'args': [eval(str(k)) for k in v['random']], 'dist': self.distributions[v.get('distribution', 'uniform')], 'norm': v.get('norm', 1)} for p,v in c.parameters.items() if 'random' in v }
         self.dependent = { p : v['value'] for p,v in c.parameters.items() if v.get('dependent',False) and 'value' in v }
 
     def generate(self):
         """
-        Generate uniformly distributed numbers for specified SLHA blocks.
+        Generate random numbers for specified SLHA blocks.
 
         Substitute the numbers in dependend blocks, if necessary.
         """
         dataset = { p : v for p,v in self.dependent.items() }
-        [ dataset.update({ p : uniform(*v)}) for p,v in self.randoms.items() ]
+        [ dataset.update({ p : v['norm']*v['dist'](*v['args'])}) for p,v in self.randoms.items() ]
         return substitute(dataset)
 
     def scan(self, numparas, pos=0):
