@@ -11,7 +11,7 @@ from sys import exit
 from math import * # noqa: F403 F401
 from shutil import copy2,copytree, rmtree
 from tempfile import mkdtemp
-from pandas.io.json import json_normalize
+from pandas import json_normalize
 
 __all__ = ['RUNNERS', 'BaseRunner', 'SLHARunner', 'MicrOmegas']
 
