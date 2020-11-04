@@ -269,8 +269,8 @@ class SLHARunner(BaseRunner):
 
         slha = True
         for binary in self.binaries:
-            if not slha:
-                continue
+            # if not slha:
+            #     continue
             if type(binary) == list:
                 # insert file names into the executable command
                 binary = [ b.format(**slha_base) for b in binary ]
