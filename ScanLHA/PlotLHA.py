@@ -6,6 +6,7 @@ from pandas import HDFStore
 # from IPython import embed
 import logging
 import os
+import sys
 from .config import Config
 from math import * # noqa: E403 F401 F403
 from collections import ChainMap
@@ -13,9 +14,14 @@ from argparse import ArgumentParser
 import matplotlib
 from matplotlib.colors import LogNorm, Normalize
 from matplotlib.colorbar import ColorbarBase
+import importlib
 matplotlib.use('Agg')
 # matplotlib.use('ps')
 import matplotlib.pyplot as plt # noqa: E402
+
+if os.path.isfile('functions.py'):
+    sys.path.append(os.getcwd())
+    functions = importlib.import_module('functions')
 
 __all__ = ['Plot', 'PlotConf', 'axisdefault']
 
@@ -66,8 +72,8 @@ class PlotConf(ChainMap):
                     r'\usepackage{xcolor}',
                     r'\usepackage{nicefrac}',
                     r'\usepackage{amsmath}',
-                    r'\usepackage{units}',
-                    r'\usepackage{sfmath} \boldmath']
+                    r'\usepackage{units}']
+              #      r'\usepackage{sfmath} \boldmath']
                 },
 
             'dpi': 300,
@@ -181,6 +187,7 @@ def Plot():
     if hasattr(attrs, 'config') and conf.get('conf_overwrite', False):
         attrs.config['scatterplot'] = {}
         c.append(attrs.config)
+
     if not DATA.empty and 'newfields' in conf:
         for field,expr in conf['newfields'].items():
             logging.debug("executing DATA[{}] = {}]".format(field, expr))
@@ -262,10 +269,17 @@ def Plot():
                 z = c.parameters.get(z,{'lha': z})['lha']
 
             PDATA = DATA
+            for constr in lconf['constraints']:
+                PDATA = PDATA[eval(constr)]
+
             if(lconf['datafile'] and lconf['datafile'] != conf['datafile']):
                 conf['datafile'] = lconf['datafile'] # TODO
-                DATA = HDFStore(lconf['datafile'])['results']  # TODO
+                store.close()
+                del DATA, PDATA, store
+                store = HDFStore(lconf['datafile'])  # TODO
+                DATA = store['results']  # TODO
                 PDATA = DATA
+
                 if not PDATA.empty and 'newfields' in conf:
                     for field,expr in conf['newfields'].items():
                         logging.debug("executing PATA[{}] = {}]".format(field, expr))
@@ -277,13 +291,17 @@ def Plot():
                 if len(bounds) == 2:
                     PDATA = PDATA[(PDATA[field] >= bounds[0]) & (PDATA[field] <= bounds[1])]
 
-            for constr in lconf['constraints']:
-                PDATA = PDATA[eval(constr)]
-
             if lconf['x-axis']['lognorm']:
-                plt.xscale('log')
+                if type(lconf['x-axis']['lognorm']) == str:
+                    plt.xscale(lconf['x-axis']['lognorm'])
+                else:
+                    plt.xscale('log')
+
             if lconf['y-axis']['lognorm']:
-                plt.yscale('log')
+                if type(lconf['y-axis']['lognorm']) == str:
+                    plt.yscale(lconf['y-axis']['lognorm'])
+                else:
+                    plt.yscale('log')
 
             if z:
                 color = PDATA[z]
@@ -294,7 +312,12 @@ def Plot():
                 vmax = None
             znorm = LogNorm(vmin=vmin, vmax=vmax) if lconf['z-axis']['lognorm'] else None
 
-            cs = plt.scatter(PDATA[x], PDATA[y], zorder=zorder, label=label, cmap=cmap, c=color, vmin=vmin, vmax=vmax, norm=znorm, s=lconf['s'], alpha=lconf['alpha'])
+            cs = plt.scatter(PDATA[x], PDATA[y], zorder=zorder, label=label, cmap=cmap, c=color, vmin=vmin, vmax=vmax, norm=znorm, s=lconf['s'], alpha=lconf['alpha'], marker=lconf.get('marker', None))
+            # cs = plt.plot(PDATA[x], PDATA[y], lconf.get('fmt', 'o'), zorder=zorder, label=label, c=color, alpha=lconf['alpha'])
+            
+            plt.grid(b=True, which='major', color='#777777', linestyle='-', alpha=0.3, zorder=0)
+            plt.minorticks_on()
+            plt.grid(b=True, which='minor', color='#999999', linestyle='-', alpha=0.1, zorder=0)
 
             plt.margins(x=0.01,y=0.01)  # TODO
             if lconf['x-axis']['ticks']:
