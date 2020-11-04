@@ -62,6 +62,12 @@ def parseSLHA(slhafile, blocks=[]):
             'HiggsCouplingsBosons'
             ]
 
+    # blocks which have more than one numerical value are joined into a "|"-separated string
+    list_blocks = {
+            'HiggsCouplingsFermions': 2,
+            'HiggsBoundsInputHiggsCouplingsFermions': 2,
+            }
+
     try:
         with open(slhafile,'r') as f:
             slha = pylha.load(f)
@@ -79,9 +85,12 @@ def parseSLHA(slhafile, blocks=[]):
         slha_blocks = { b : v for b,v in slha_blocks.items() if b in blocks }
     for b,v in slha_blocks.items():
         try:
+            if b in list_blocks:
+                v['values'] = [ ['|'.join(str(y) for y in x[:list_blocks[b]])] + x[list_blocks[b]:] for x in v['values']]
             if b in reversed_blocks:
                 [x.reverse() for x in v['values']]
             v['values'] = mergedicts([list2dict(l) for l in v['values']],{})
+
             v['info'] = ''.join(str(i) for i in v['info'])
         except:
             pass
