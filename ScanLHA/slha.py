@@ -52,7 +52,16 @@ def parseSLHA(slhafile, blocks=[]):
 
     Uses [pylha](https://github.com/DavidMStraub/pylha pylha) but gives a more meaningful output
     the result is stored in a nested dictionary.
+
+    Converts (i.e. reverses) non-standard SLHA entrys (such as HiggsBounds).
     """
+    reversed_blocks = [
+            'HiggsBoundsInputHiggsCouplingsBosons',
+            'HiggsBoundsInputHiggsCouplingsFermions',
+            'HiggsCouplingsFermions',
+            'HiggsCouplingsBosons'
+            ]
+
     try:
         with open(slhafile,'r') as f:
             slha = pylha.load(f)
@@ -68,13 +77,10 @@ def parseSLHA(slhafile, blocks=[]):
         slha_blocks = {}
     if blocks:
         slha_blocks = { b : v for b,v in slha_blocks.items() if b in blocks }
-    try: # TODO convert into valid slha instead of dropping
-        slha_blocks.pop('HiggsBoundsInputHiggsCouplingsBosons')
-        slha_blocks.pop('HiggsBoundsInputHiggsCouplingsFermions')
-    except KeyError:
-        pass
     for b,v in slha_blocks.items():
         try:
+            if b in reversed_blocks:
+                [x.reverse() for x in v['values']]
             v['values'] = mergedicts([list2dict(l) for l in v['values']],{})
             v['info'] = ''.join(str(i) for i in v['info'])
         except:
