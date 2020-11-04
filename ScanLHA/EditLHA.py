@@ -2,17 +2,20 @@
 """
 Interactively load/edit/save/plot HDF files.
 """
-from pandas import read_hdf, DataFrame # noqa: F401
 try:
     from IPython import embed
     ipy = True
 except:
     import code
-    ipyt = False
+    ipy = False
 from glob import glob
 import os
-from matplotlib import pyplot as plt # noqa: F401
 from argparse import ArgumentParser
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt # noqa: E402, F401
+from pandas import read_hdf, DataFrame # noqa: F401
+
 __pdoc__ = {}
 __pdoc__['Edit'] = """
     Usage: EditLHA [-h] h5file.h5 [h5file.h5 ...]
