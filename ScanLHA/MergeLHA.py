@@ -42,7 +42,6 @@ def Merge():
         for f in fs:
             print('Reading %s ...' % f)
             tmp_store = HDFStore(f)
-            tmp_conf = tmp_store.get_storer(LHAPATH).attrs.config
             try:
                 tmp_conf = tmp_store.get_storer(LHAPATH).attrs.config
                 if not store_conf:
