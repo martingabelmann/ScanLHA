@@ -63,17 +63,17 @@ class PlotConf(ChainMap):
             'cmap': None,
             'alpha' : 1.0,
             'datafile': 'results.h5',
-            'fontsize': 28,
+            'fontsize': 10,
             'rcParams': {
-                'font.size': 28,
+                'font.size': 10,
                 'text.usetex': True,
-                'font.weight' : 'bold',
+                'font.weight' : 'normal',
                 'text.latex.preamble': [
                     r'\usepackage{xcolor}',
                     r'\usepackage{nicefrac}',
                     r'\usepackage{amsmath}',
                     r'\usepackage{units}']
-              #      r'\usepackage{sfmath} \boldmath']
+                # r'\usepackage{sfmath} \boldmath']
                 },
 
             'dpi': 300,
@@ -312,9 +312,11 @@ def Plot():
                 vmax = None
             znorm = LogNorm(vmin=vmin, vmax=vmax) if lconf['z-axis']['lognorm'] else None
 
-            cs = plt.scatter(PDATA[x], PDATA[y], zorder=zorder, label=label, cmap=cmap, c=color, vmin=vmin, vmax=vmax, norm=znorm, s=lconf['s'], alpha=lconf['alpha'], marker=lconf.get('marker', None))
-            # cs = plt.plot(PDATA[x], PDATA[y], lconf.get('fmt', 'o'), zorder=zorder, label=label, c=color, alpha=lconf['alpha'])
-            
+            if lconf.get('type', 'scatter'):
+                cs = plt.scatter(PDATA[x], PDATA[y], zorder=zorder, label=label, cmap=cmap, c=color, vmin=vmin, vmax=vmax, norm=znorm, s=lconf['s'], alpha=lconf['alpha'], marker=lconf.get('marker', None))
+            else:
+                cs = plt.plot(PDATA[x], PDATA[y], lconf.get('fmt', 'o'), zorder=zorder, label=label, c=color, alpha=lconf['alpha'])
+
             plt.grid(b=True, which='major', color='#777777', linestyle='-', alpha=0.3, zorder=0)
             plt.minorticks_on()
             plt.grid(b=True, which='minor', color='#999999', linestyle='-', alpha=0.1, zorder=0)
