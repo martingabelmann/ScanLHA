@@ -10,7 +10,7 @@ __pdoc__ = {}
 __pdoc__['Merge'] = """
 Merges multiple HDF files into one file.
 
-Usage: MergeLHA mergedfile.h5 file1.h5 file2.h5 [...]
+Usage: MergeLHA file1.h5 file2.h5 [...] mergedfile.h5
 
 File names may be specified using patterns compatible with python.glob (e.g. '*.h5').
 
