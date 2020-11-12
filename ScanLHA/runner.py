@@ -10,7 +10,7 @@ import os
 from sys import exit
 from math import * # noqa: F403 F401
 from shutil import copy2,copytree, rmtree
-from tempfile import mkdtemp
+from tempfile import mkdtemp, gettempdir
 from pandas import json_normalize
 
 __all__ = ['RUNNERS', 'BaseRunner', 'SLHARunner', 'MicrOmegas']
@@ -73,6 +73,7 @@ class BaseRunner(metaclass=Runner_Register):
         self.binaries = []
         self.tmp = False
         self.initialized = False
+        self.id = randint(10000,99999)
 
     def makedirs(self, tocopy=[]):
         """
@@ -85,7 +86,9 @@ class BaseRunner(metaclass=Runner_Register):
                 self.config['tmpfs'] = '/dev/shm/'
             else:
                 self.config['tmpfs'] = mkdtemp()
-        self.rundir = os.path.join(self.config['tmpfs'], 'run%d' % randint(10000,99999))
+        if self.config['tmpfs'] == '$TMP':
+            self.config['tmpfs'] = gettempdir()
+        self.rundir = os.path.join(self.config['tmpfs'], 'run%d' % self.id)
         if not os.path.exists(self.rundir):
             logging.debug('Creating temporary directory {}.'.format(self.rundir))
             os.makedirs(self.rundir)

@@ -14,15 +14,18 @@ from itertools import product
 from pandas import HDFStore, concat, DataFrame
 from .slha import genSLHA
 from .runner import RUNNERS
-from numpy.random import seed, uniform, normal, exponential, poisson
-from time import time
+# import numpy.random import uniform, normal, exponential, poisson, seed
+import numpy.random as random
 from glob import glob
-import importlib
 
 if os.path.isdir('runner_plugins'):
-    # dynamically import custom runners from the directory "./runner_plugins"
-    for runner in glob('runner_plugins/*.py'):
-        importlib.import_module(runner.replace('/', '.').replace('.py', ''))
+    for file_path in glob('runner_plugins/*.py'):
+        module_name = file_path.replace('runner_plugins/', '').replace('.py', '')
+        print('importing: ' + module_name + ' from runner_plugins/')
+        try:
+            exec('from {} import *'.format(module_name))
+        except ImportError:
+            print("could not import {} do you append {} to $PYTHONPATH?".format(module_name, file_path))
 
 def substitute(param_dict):
     """ recusively apply format_map onto keys of <param_dict> using <param_dict> """
@@ -185,9 +188,7 @@ class RandomScan():
         self.getblocks = self.config.get('getblocks', [])
         self.runner = RUNNERS[self.config['runner'].get('type','SLHARunner')]
         self.parallel = os.cpu_count()
-        self.seed = round(time()) if not seed else seed
-        self.distributions = {'uniform': uniform, 'exponential': exponential, 'normal': normal, 'poisson': poisson}
-        self.randoms = { p : { 'args': [eval(str(k)) for k in v['random']], 'dist': self.distributions[v.get('distribution', 'uniform')], 'norm': v.get('norm', 1)} for p,v in c.parameters.items() if 'random' in v }
+        #  self.seed = seed
         self.dependent = { p : v['value'] for p,v in c.parameters.items() if v.get('dependent',False) and 'value' in v }
 
     def generate(self):
@@ -211,8 +212,12 @@ class RandomScan():
         if not runner.initialized:
             logging.error('Could not initialize runner.')
             return DataFrame()
+
         results = []
-        seed(self.seed + pos)
+
+        self.distributions = {'uniform': random.RandomState().uniform, 'exponential': random.RandomState().exponential, 'normal': random.RandomState().normal, 'poisson': random.RandomState().poisson}
+        self.randoms = { p : { 'args': [eval(str(k)) for k in v['random']], 'dist': self.distributions[v.get('distribution', 'uniform')], 'norm': v.get('norm', 1)} for p,v in self.config.parameters.items() if 'random' in v }
+
         with tqdm(total=numparas, unit='point', position=pos) as bar:
             while numresults < numparas:
                 result = runner.run(self.generate())
@@ -257,7 +262,7 @@ class RandomScan():
         store = HDFStore(filename)
         store[path] = self.results
         store.get_storer(path).attrs.config = self.config
-        store.get_storer(path).attrs.seed = self.seed
+        #  store.get_storer(path).attrs.seed = self.seed
         store.get_storer(path).attrs.parallel = self.parallel
         store.close()
 
