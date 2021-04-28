@@ -3,7 +3,6 @@
 Plot ScanLHA scan results.
 """
 from pandas import HDFStore
-# from IPython import embed
 import logging
 import os
 import sys
@@ -11,6 +10,7 @@ from .config import Config
 from math import * # noqa: E403 F401 F403
 from collections import ChainMap
 from argparse import ArgumentParser
+from numpy import nan  # noqa: F401
 import matplotlib
 from matplotlib.colors import LogNorm, Normalize
 from matplotlib.colorbar import ColorbarBase
@@ -18,12 +18,30 @@ import importlib
 matplotlib.use('Agg')
 # matplotlib.use('ps')
 import matplotlib.pyplot as plt # noqa: E402
+from IPython import embed # noqa: F402, E402
 
 if os.path.isfile('functions.py'):
     sys.path.append(os.getcwd())
     functions = importlib.import_module('functions')
 
 __all__ = ['Plot', 'PlotConf', 'axisdefault']
+
+def arg(re,im):
+    """argument of complex number with real part re and imaginary part im """
+    arg = 0
+    if re > 0:
+        arg = atan(im/re)       # noqa: F405
+    elif re < 0 and im >= 0:
+        arg = atan(im/re)+pi    # noqa: F405
+    elif re < 0 and im < 0:
+        arg = atan(im/re)-pi    # noqa: F405
+    elif re == 0 and im > 0:
+        arg = pi/2              # noqa: F405
+    elif re == 0 and im < 0:
+        arg = -pi/2             # noqa: F405
+    elif re == 0 and im == 0:
+        arg = 0
+    return arg
 
 axisdefault = {
         'boundaries' : [],
@@ -39,7 +57,6 @@ axisdefault = {
 """
 Default values for all axes.
 """
-
 class PlotConf(ChainMap):
     """ Config class which allows for successively defined defaults """
     def __init__(self, *args):
@@ -50,12 +67,15 @@ class PlotConf(ChainMap):
             'z-axis': axisdefault,
             'colorbar_only': False,
             'constraints': [],
+            'type': 'scatter',
             'legend': {
-                'loc' : 'right',
-                'bbox_to_anchor' : [1.5, 0.5]
+#                'loc' : 'right',
+#                'bbox_to_anchor' : [1.5, 0.5]
                 },
+            'figsize': None,
             'hline': False,
             'vline': False,
+            'exec': False,
             'lw': 1.0,
             's': None,
             'title': False,
@@ -63,17 +83,19 @@ class PlotConf(ChainMap):
             'cmap': None,
             'alpha' : 1.0,
             'datafile': 'results.h5',
-            'fontsize': 10,
+            'fontsize': 11,
+            'tick_params': {},
             'rcParams': {
-                'font.size': 10,
+                'savefig.pad_inches': 0.04,
+                'font.size': 11,
                 'text.usetex': True,
                 'font.weight' : 'normal',
-                'text.latex.preamble': [
-                    r'\usepackage{xcolor}',
-                    r'\usepackage{nicefrac}',
-                    r'\usepackage{amsmath}',
-                    r'\usepackage{units}']
-                # r'\usepackage{sfmath} \boldmath']
+                'text.latex.preamble': """\\usepackage{xcolor}
+\\usepackage{nicefrac}
+\\usepackage{amsmath}
+\\usepackage{units}
+\\usepackage{lmodern}
+""" # \\usepackage{sfmath}""" # \\boldmath"""
                 },
 
             'dpi': 300,
@@ -90,6 +112,7 @@ class PlotConf(ChainMap):
 
 
 def Plot():
+    global PDATA, DATA, c, conf, logging, args, path, DIR, store
     """
     Basic usage: `PlotLHA --help`
 
@@ -153,6 +176,8 @@ def Plot():
     parser = ArgumentParser(description='Plot ScanLHA results.')
     parser.add_argument("config", type=str,
             help="path to YAML file config.yml containing the plot (and optional scan) config.")
+    parser.add_argument("-i", "--interactive", action="store_true",
+            help="opens interactive plot environment with IPython: plot using the 'plot()' function")
     parser.add_argument("-v", "--verbose", action="store_true",
             help="increase output verbosity")
 
@@ -181,8 +206,27 @@ def Plot():
         exit(1)
 
     store = HDFStore(conf['datafile'])
+
     path = 'results' # TODO
     DATA = store[path]
+
+    attrs = store.get_storer(path).attrs
+    if hasattr(attrs, 'config') and conf.get('conf_overwrite', False):
+        attrs.config['scatterplot'] = {}
+        c.append(attrs.config)
+
+    if(args.interactive):
+        embed()
+    else:
+        plot()
+
+    store.close()
+
+def plot():
+    global DATA, store
+    c = Config(args.config)
+    conf = PlotConf()
+    conf = conf.new_child(c['scatterplot'].get('conf',{}))
     attrs = store.get_storer(path).attrs
     if hasattr(attrs, 'config') and conf.get('conf_overwrite', False):
         attrs.config['scatterplot'] = {}
@@ -203,6 +247,12 @@ def Plot():
         plt.cla()
         plt.clf()
         plt.rcParams.update(pconf['rcParams'])
+
+        if pconf['figsize']:
+            plt.figure(figsize=pconf['figsize'])
+        else:
+            plt.figure()
+
         if pconf['fontsize'] != conf['fontsize']:
             plt.rcParams.update({'font.size': pconf['fontsize']})
 
@@ -230,7 +280,7 @@ def Plot():
         if 'plots' not in p:
             p['plots'] = [p]
 
-        for l in p['plots']:
+        for l in p['plots']: # noqa: E741
             lconf = pconf.new_child(l)
 
             label = lconf['label']
@@ -289,6 +339,7 @@ def Plot():
             for ax,field in {'x-axis':x, 'y-axis':y, 'z-axis':z}.items():
                 bounds = lconf[ax]['boundaries']
                 if len(bounds) == 2:
+                    logging.debug("applying boundaries [{},{}] on axis {}, field {}".format(bounds[0],bounds[1],ax,field))
                     PDATA = PDATA[(PDATA[field] >= bounds[0]) & (PDATA[field] <= bounds[1])]
 
             if lconf['x-axis']['lognorm']:
@@ -304,6 +355,7 @@ def Plot():
                     plt.yscale('log')
 
             if z:
+                PDATA = PDATA.sort_values(by=z)
                 color = PDATA[z]
                 vmin = PDATA[z].min() if not lconf['z-axis']['vmin'] else lconf['z-axis']['vmin']
                 vmax = PDATA[z].max() if not lconf['z-axis']['vmax'] else lconf['z-axis']['vmax']
@@ -312,10 +364,14 @@ def Plot():
                 vmax = None
             znorm = LogNorm(vmin=vmin, vmax=vmax) if lconf['z-axis']['lognorm'] else None
 
-            if lconf.get('type', 'scatter'):
+            if lconf['exec']:
+                exec(lconf['exec'])
+
+            if pconf.get('type', 'scatter') == 'scatter':
                 cs = plt.scatter(PDATA[x], PDATA[y], zorder=zorder, label=label, cmap=cmap, c=color, vmin=vmin, vmax=vmax, norm=znorm, s=lconf['s'], alpha=lconf['alpha'], marker=lconf.get('marker', None))
             else:
-                cs = plt.plot(PDATA[x], PDATA[y], lconf.get('fmt', 'o'), zorder=zorder, label=label, c=color, alpha=lconf['alpha'])
+                PDATA = PDATA[[x,y]].dropna().sort_values(by=x)
+                cs = plt.plot(PDATA[x], PDATA[y], lconf.get('fmt', '.'), zorder=zorder, c=color, alpha=lconf['alpha'], label=label, **lconf.get('kwargs',{}))
 
             plt.grid(b=True, which='major', color='#777777', linestyle='-', alpha=0.3, zorder=0)
             plt.minorticks_on()
@@ -323,21 +379,29 @@ def Plot():
 
             plt.margins(x=0.01,y=0.01)  # TODO
             if lconf['x-axis']['ticks']:
+                if type(lconf['x-axis']['ticks'][0]) is not list:
+                    lconf['x-axis']['ticks'] = [lconf['x-axis']['ticks'], ['${}$'.format(xt) for xt in lconf['x-axis']['ticks']]]
                 plt.xticks(lconf['x-axis']['ticks'][0],lconf['x-axis']['ticks'][1])
             if lconf['y-axis']['ticks']:
+                if type(lconf['y-axis']['ticks'][0]) is not list:
+                    lconf['y-axis']['ticks'] = [lconf['y-axis']['ticks'], ['${}$'.format(yt) for yt in lconf['y-axis']['ticks']]]
                 plt.yticks(lconf['y-axis']['ticks'][0],lconf['y-axis']['ticks'][1])
 
             if lconf['z-axis']['colorbar']:
-                cbar = plt.colorbar(cs, orientation=lconf['z-axis']['colorbar_orientation'])
+                cbar = plt.colorbar(cs, orientation=lconf['z-axis']['colorbar_orientation'], **lconf['z-axis'].get('kwargs',{}))
                 if zlabel:
                     cbar.set_label(zlabel)
                 if lconf['z-axis']['ticks']:
+                    if type(lconf['z-axis']['ticks'][0]) is not list:
+                        lconf['z-axis']['ticks'] = [lconf['z-axis']['ticks'], ['${}$'.format(zt) for zt in lconf['z-axis']['ticks']]]
                     cbar.set_ticks(lconf['z-axis']['ticks'])
+                for label in cbar.ax.yaxis.get_ticklabels():
+                    if lconf['z-axis']['colorbar_orientation'] == 'horizontal':
+                        label.set_ha('center')
+                    else:
+                        label.set_va('center')
 
             lcount += 1
-
-        if any([l.get('label', False) for l in p['plots']]):
-            plt.legend(**pconf['legend'])
 
         if pconf['textbox'] and 'text' in pconf['textbox']:
             bbox = pconf['textbox'].get('bbox', dict(boxstyle='round', facecolor='white', alpha=0.2))
@@ -348,9 +412,22 @@ def Plot():
             ytext = pconf['textbox'].get('y', 0.85)
             plt.gcf().text(xtext, ytext, pconf['textbox']['text'], fontsize=textsize ,va=va, ha=ha, bbox=bbox)
 
+        if pconf['tick_params']:
+            plt.tick_params(**pconf['tick_params'])
+
+        ax = plt.gca()
+        for label in ax.yaxis.get_ticklabels():
+            label.set_verticalalignment('center')
+        for label in ax.xaxis.get_ticklabels():
+            label.set_horizontalalignment('center')
+
+        for ann in p.get('annotiations',[]):
+            plt.annotate(ann['label'], ann['pos'], **ann.get('kwargs',{}))
+
+        if any([lbl.get('label', False) for lbl in p['plots']]):
+            plt.legend(**pconf['legend'])
+
         plotfile = DIR + p.get('filename', 'plot{}.png'.format(pcount))
         logging.info("Saving {}.".format(plotfile))
         plt.savefig(plotfile, bbox_inches="tight", dpi=pconf['dpi'])
         pcount += 1
-
-    store.close()
