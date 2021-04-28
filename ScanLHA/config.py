@@ -321,10 +321,10 @@ class Config(dict):
                 if 'parameter' not in line:
                     line['parameter'] = '{}.{}'.format(block['block'],line['id'])
                 elif line['parameter'] in self.parameters.keys():
-                        para = line['parameter'] + '1'
-                        logging.error('Parameter {} set twice! Renaming to {}.'.format(line['parameter'], para))
-                        line['parameter'] = para
-                        self.valid = False
+                    para = line['parameter'] + '1'
+                    logging.error('Parameter {} set twice! Renaming to {}.'.format(line['parameter'], para))
+                    line['parameter'] = para
+                    self.valid = False
                 self.parameters[line['parameter']] = line
                 if 'value' in line and line.get('dependent', False) and type(line['value']) != str:
                     print(line.get('dependent', False))
@@ -347,4 +347,10 @@ class Config(dict):
                 if 'lha' not in line:
                     line['lha'] = '{}.values.{}'.format(block['block'],line['id'])
                 lines_seen.append([block['block'], line['id']])
+
+        # check for other stuff
+        self['runner']['writeevery'] = self['runner'].get('writeevery', 0)
+        if not isinstance(self['runner']['writeevery'], int):
+            logging.error("runner['writeevery'] must be integer")
+            self.valid = False
         return self.valid

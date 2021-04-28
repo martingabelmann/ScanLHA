@@ -225,6 +225,8 @@ class RandomScan():
                     results.append(result)
                     numresults += 1
                     bar.update(1)
+                if runner.config['writeevery'] > 0 and numresults % runner.config['writeevery'] == 0:
+                    pass
         return concat(results, ignore_index=True)
 
     def submit(self,num_workers=None):
