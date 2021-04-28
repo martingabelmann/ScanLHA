@@ -8,13 +8,14 @@ try:
 except:
     import code
     ipy = False
+import pandas as pd # noqa: F401
 from glob import glob
 from os import path, getenv, chdir
 from argparse import ArgumentParser
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt # noqa: E402, F401
-from pandas import read_hdf, DataFrame, HDFStore # noqa: F401
+from pandas import read_hdf, DataFrame, HDFStore # noqa: F401, E402
 
 __pdoc__ = {}
 __pdoc__['Edit'] = """
