@@ -247,7 +247,7 @@ class SLHARunner(BaseRunner):
         """
         * Prepare all files for the run with the parameters `params` (dict).
         * iterate over the binaries in `self.binaries`
-          * check for fulfilled constraints
+          * check for fulfilled constraints. If runner['all_constraints'] is set to True (default: False), the binary-chain is stopped on the first failed constraint.
 
         Example for `self.binaries` that passes results trough the different runs:
 
@@ -272,8 +272,8 @@ class SLHARunner(BaseRunner):
 
         slha = True
         for binary in self.binaries:
-            # if not slha:
-            #     continue
+            if not slha and self.config.get('all_constraints', False):
+                continue
             if type(binary) == list:
                 # insert file names into the executable command
                 binary = [ b.format(**slha_base) for b in binary ]
