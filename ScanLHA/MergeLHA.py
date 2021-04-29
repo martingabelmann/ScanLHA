@@ -48,6 +48,7 @@ def Merge():
                     store_conf = tmp_conf
             except AttributeError:
                 print('No config attribute found in {}'.format(f))
+                store_conf = {}
             if 'scatterplot' in store_conf:
                 tmp_conf['scatterplot'] = store_conf['scatterplot']
             if store_conf and store_conf != tmp_conf:
