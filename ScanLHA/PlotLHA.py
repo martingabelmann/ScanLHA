@@ -112,7 +112,7 @@ class PlotConf(ChainMap):
 
 
 def Plot():
-    global PDATA, DATA, c, conf, logging, args, path, DIR, store
+    global PDATA, DATA, c, conf, logger, args, path, DIR, store
     """
     Basic usage: `PlotLHA --help`
 
@@ -178,20 +178,25 @@ def Plot():
             help="path to YAML file config.yml containing the plot (and optional scan) config.")
     parser.add_argument("-i", "--interactive", action="store_true",
             help="opens interactive plot environment with IPython: plot using the 'plot()' function")
-    parser.add_argument("-v", "--verbose", action="store_true",
+    parser.add_argument("-v", "--verbose", action="count", default=0,
             help="increase output verbosity")
 
     args = parser.parse_args()
 
-    logging.getLogger().setLevel(logging.INFO)
-    if args.verbose:
+    logger = logging.getLogger('PlotLHA')
+    logger.setLevel(logging.INFO)
+    if args.verbose >= 1:
+        logger.setLevel(logging.DEBUG)
+        print("setting loglevel to DEBUG")
+    if args.verbose >= 2:
         logging.getLogger().setLevel(logging.DEBUG)
+        print("set loglevel DEBUG for matplotlib internals and all other modules")
 
     c = Config(args.config)
     DIR = os.path.dirname(os.path.abspath(args.config)) + '/'
 
     if 'scatterplot' not in c:
-        logging.error('config file must contain "scatterplot" dict.')
+        logger.error('config file must contain "scatterplot" dict.')
         exit(1)
 
     if 'plots' not in c['scatterplot']:
@@ -202,7 +207,7 @@ def Plot():
     conf = conf.new_child(c['scatterplot'].get('conf',{}))
 
     if not os.path.isfile(conf['datafile']):
-        logging.error('Data file {} does not exist.'.format(conf['datafile']))
+        logger.error('Data file {} does not exist.'.format(conf['datafile']))
         exit(1)
 
     store = HDFStore(conf['datafile'])
@@ -233,10 +238,11 @@ def plot():
         c.append(attrs.config)
 
     if not DATA.empty and 'newfields' in conf:
+        logger.debug("generate custom newfields")
         for field,expr in conf['newfields'].items():
-            logging.debug("executing DATA[{}] = {}]".format(field, expr))
+            logger.debug("executing DATA[{}] = {}]".format(field, expr))
             DATA[field] = eval(expr)
-        logging.debug("done.")
+        logger.debug("done.")
 
     pcount = 0
     for p in c['scatterplot']['plots']:
@@ -319,27 +325,32 @@ def plot():
                 z = c.parameters.get(z,{'lha': z})['lha']
 
             PDATA = DATA
+            if lconf['constraints']:
+                logger.debug("Applying given constraints.")
             for constr in lconf['constraints']:
+                logger.debug("executing DATA[{}] = {}]".format(field, constr))
                 PDATA = PDATA[eval(constr)]
 
             if(lconf['datafile'] and lconf['datafile'] != conf['datafile']):
                 conf['datafile'] = lconf['datafile'] # TODO
                 store.close()
+                logger.info("load new datafile {} (will be used for all following plots".format(conf['datafile']))
                 del DATA, PDATA, store
                 store = HDFStore(lconf['datafile'])  # TODO
                 DATA = store['results']  # TODO
                 PDATA = DATA
 
                 if not PDATA.empty and 'newfields' in conf:
+                    logger.debug("generate custom newfields for new datafile")
                     for field,expr in conf['newfields'].items():
-                        logging.debug("executing PATA[{}] = {}]".format(field, expr))
+                        logger.debug("executing PATA[{}] = {}]".format(field, expr))
                         PDATA[field] = eval(expr)
-                    logging.debug("done.")
+                    logger.debug("done.")
 
             for ax,field in {'x-axis':x, 'y-axis':y, 'z-axis':z}.items():
                 bounds = lconf[ax]['boundaries']
                 if len(bounds) == 2:
-                    logging.debug("applying boundaries [{},{}] on axis {}, field {}".format(bounds[0],bounds[1],ax,field))
+                    logger.debug("applying boundaries [{},{}] on axis {}, field {}".format(bounds[0],bounds[1],ax,field))
                     PDATA = PDATA[(PDATA[field] >= bounds[0]) & (PDATA[field] <= bounds[1])]
 
             if lconf['x-axis']['lognorm']:
@@ -368,7 +379,7 @@ def plot():
                 exec(lconf['exec'])
 
             if len(PDATA) == 0:
-                logging.error('In plot {}, x:{} , y:{}; no data to plot! (wrong boundaries or constraints?)'.format(p['filename'], x, y))
+                logger.error('In plot {}, x:{} , y:{}; no data to plot! (wrong boundaries or constraints?)'.format(p['filename'], x, y))
                 continue
 
             if pconf.get('type', 'scatter') == 'scatter':
@@ -432,6 +443,6 @@ def plot():
             plt.legend(**pconf['legend'])
 
         plotfile = DIR + p.get('filename', 'plot{}.png'.format(pcount))
-        logging.info("Saving {}.".format(plotfile))
+        logger.info("Saving {}.".format(plotfile))
         plt.savefig(plotfile, bbox_inches="tight", dpi=pconf['dpi'])
         pcount += 1
