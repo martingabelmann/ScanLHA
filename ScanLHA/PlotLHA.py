@@ -367,6 +367,10 @@ def plot():
             if lconf['exec']:
                 exec(lconf['exec'])
 
+            if len(PDATA) == 0:
+                logging.error('In plot {}, x:{} , y:{}; no data to plot! (wrong boundaries or constraints?)'.format(p['filename'], x, y))
+                continue
+
             if pconf.get('type', 'scatter') == 'scatter':
                 cs = plt.scatter(PDATA[x], PDATA[y], zorder=zorder, label=label, cmap=cmap, c=color, vmin=vmin, vmax=vmax, norm=znorm, s=lconf['s'], alpha=lconf['alpha'], marker=lconf.get('marker', None))
             else:
