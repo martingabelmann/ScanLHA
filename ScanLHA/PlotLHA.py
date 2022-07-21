@@ -10,7 +10,7 @@ from .config import Config
 from math import * # noqa: E403 F401 F403
 from collections import ChainMap
 from argparse import ArgumentParser
-from numpy import nan  # noqa: F401
+from numpy import nan, linspace  # noqa: F401
 import matplotlib
 from matplotlib.colors import LogNorm, Normalize
 from matplotlib.colorbar import ColorbarBase
@@ -20,9 +20,13 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt # noqa: E402
 from IPython import embed # noqa: F402, E402
 
+plt.rc('text', usetex=True)
+plt.rc('text.latex', preamble = r'\usepackage{amsmath,nicefrac,units,lmodern} \boldmath')
+
+
 if os.path.isfile('functions.py'):
     sys.path.append(os.getcwd())
-    functions = importlib.import_module('functions')
+    f = importlib.import_module('functions')
 
 __all__ = ['Plot', 'PlotConf', 'axisdefault']
 
@@ -84,20 +88,15 @@ class PlotConf(ChainMap):
             'alpha' : 1.0,
             'datafile': 'results.h5',
             'fontsize': 11,
+#           'fontsize': 17,
             'tick_params': {},
             'rcParams': {
                 'savefig.pad_inches': 0.04,
-                'font.size': 11,
+                'font.size':11,
+#                'font.size': 17,
                 'text.usetex': True,
                 'font.weight' : 'normal',
-                'text.latex.preamble': """\\usepackage{xcolor}
-\\usepackage{nicefrac}
-\\usepackage{amsmath}
-\\usepackage{units}
-\\usepackage{lmodern}
-""" # \\usepackage{sfmath}""" # \\boldmath"""
-                },
-
+            },
             'dpi': 300,
             'textbox': {}
             })
@@ -227,7 +226,7 @@ def Plot():
 
     store.close()
 
-def plot():
+def plot(fig=''):
     global DATA, store
     c = Config(args.config)
     conf = PlotConf()
@@ -246,6 +245,8 @@ def plot():
 
     pcount = 0
     for p in c['scatterplot']['plots']:
+        if fig and p['filename'] != fig:
+            continue
         lcount = 0
 
         pconf = conf.new_child(p)
@@ -253,29 +254,29 @@ def plot():
         plt.cla()
         plt.clf()
         plt.rcParams.update(pconf['rcParams'])
-
         if pconf['figsize']:
             plt.figure(figsize=pconf['figsize'])
         else:
             plt.figure()
+        plt.rcParams.update({'font.size': pconf['fontsize']})
 
-        if pconf['fontsize'] != conf['fontsize']:
-            plt.rcParams.update({'font.size': pconf['fontsize']})
-
-        if pconf['colorbar_only']:
-            plt.figure(figsize=(8, 0.25))
+        if pconf['colorbar_only']: # TODO cleanup
             ax = plt.gca()
             norm = Normalize(vmin=pconf['z-axis']['vmin'], vmax=pconf['z-axis']['vmax'])
             if pconf['z-axis']['lognorm']:
                 norm = LogNorm(vmin=pconf['z-axis']['vmin'], vmax=pconf['z-axis']['vmax'])
-            cbar = ColorbarBase(ax,norm=norm, cmap=pconf['cmap'], orientation=pconf['z-axis']['colorbar_orientation'])
-            if pconf['z-axis']['colorbar_orientation'] == 'horizontal':
-                ax.xaxis.set_label_position('top')
-                ax.xaxis.set_ticks_position('top')
-            if pconf['z-axis']['label']:
-                cbar.set_label(pconf['z-axis']['label'])
+            cbar = ColorbarBase(ax,norm=norm, cmap=pconf['cmap'], orientation='horizontal', ticklocation='top')
             if pconf['z-axis']['ticks']:
                 cbar.set_ticks(pconf['z-axis']['ticks'])
+            if pconf['z-axis']['colorbar_orientation'] == 'horizontal':
+                ax.xaxis.set_label_position('top')
+                # ax.xaxis.set_ticks_position('top')
+                # cbar.ax.tick_params(axis='x',direction='in',labeltop='on')
+                # cbar.ax.xaxis.set_ticks_position('top')
+            # cbar.ax.xaxis.set_label_position('top')
+            if pconf['z-axis']['label']:
+                ax.set_xlabel(pconf['z-axis']['label'], labelpad=15)
+            cbar.update_ticks()
             plt.savefig(pconf['filename'],bbox_inches='tight')
             plt.figure()
             continue
@@ -294,6 +295,8 @@ def plot():
             cmap = lconf['cmap']
             zorder = lconf.get('zorder', lcount)
             color = lconf.get('color', "C{}".format(lcount))
+            if isinstance(color, int):
+                color = [list(plt.cm.viridis(linspace(0,1,20))[color])]
 
             x = lconf.get('x-field', lconf['x-axis'].get('field', None))
             y = lconf.get('y-field', lconf['y-axis'].get('field', None))
@@ -347,7 +350,11 @@ def plot():
                         PDATA[field] = eval(expr)
                     logger.debug("done.")
 
+            PDATA = PDATA.replace('NaN',nan)
+
             for ax,field in {'x-axis':x, 'y-axis':y, 'z-axis':z}.items():
+                if lconf[ax].get('rescale', None):
+                    PDATA[field] = lconf[ax]['rescale']*PDATA[field]
                 bounds = lconf[ax]['boundaries']
                 if len(bounds) == 2:
                     logger.debug("applying boundaries [{},{}] on axis {}, field {}".format(bounds[0],bounds[1],ax,field))
@@ -383,7 +390,7 @@ def plot():
                 continue
 
             if pconf.get('type', 'scatter') == 'scatter':
-                cs = plt.scatter(PDATA[x], PDATA[y], zorder=zorder, label=label, cmap=cmap, c=color, vmin=vmin, vmax=vmax, norm=znorm, s=lconf['s'], alpha=lconf['alpha'], marker=lconf.get('marker', None))
+                cs = plt.scatter(PDATA[x], PDATA[y], zorder=zorder, label=label, cmap=cmap, c=color, vmin=vmin, vmax=vmax, norm=znorm, s=lconf['s'], alpha=lconf['alpha'], marker=lconf.get('marker', None), **lconf.get('kwargs',{}))
             else:
                 PDATA = PDATA[[x,y]].dropna().sort_values(by=x)
                 cs = plt.plot(PDATA[x], PDATA[y], lconf.get('fmt', '.'), zorder=zorder, c=color, alpha=lconf['alpha'], label=label, **lconf.get('kwargs',{}))
@@ -409,7 +416,11 @@ def plot():
                 if lconf['z-axis']['ticks']:
                     if type(lconf['z-axis']['ticks'][0]) is not list:
                         lconf['z-axis']['ticks'] = [lconf['z-axis']['ticks'], ['${}$'.format(zt) for zt in lconf['z-axis']['ticks']]]
-                    cbar.set_ticks(lconf['z-axis']['ticks'])
+                    cbar.set_ticks(lconf['z-axis']['ticks'][0])
+                    if lconf['z-axis']['colorbar_orientation'] == 'horizontal':
+                        cbar.ax.set_xticklabels(lconf['z-axis']['ticks'][1])
+                    else:
+                        cbar.ax.set_yticklabels(lconf['z-axis']['ticks'][1])
                 for label in cbar.ax.yaxis.get_ticklabels():
                     if lconf['z-axis']['colorbar_orientation'] == 'horizontal':
                         label.set_ha('center')
@@ -430,6 +441,9 @@ def plot():
         if pconf['tick_params']:
             plt.tick_params(**pconf['tick_params'])
 
+        if any([lbl.get('label', False) for lbl in p['plots']]):
+            plt.legend(**pconf['legend'])
+
         ax = plt.gca()
         for label in ax.yaxis.get_ticklabels():
             label.set_verticalalignment('center')
@@ -439,10 +453,8 @@ def plot():
         for ann in p.get('annotiations',[]):
             plt.annotate(ann['label'], ann['pos'], **ann.get('kwargs',{}))
 
-        if any([lbl.get('label', False) for lbl in p['plots']]):
-            plt.legend(**pconf['legend'])
-
         plotfile = DIR + p.get('filename', 'plot{}.png'.format(pcount))
-        logger.info("Saving {}.".format(plotfile))
+        # logging.info("Saving {}.".format(plotfile))
+        print("Saving {}.".format(plotfile))
         plt.savefig(plotfile, bbox_inches="tight", dpi=pconf['dpi'])
         pcount += 1
