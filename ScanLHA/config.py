@@ -25,7 +25,7 @@ def intersect(list1,list2):
     return list(set(list1) & set(list2))
 __all__ = ['Config']
 class Config(dict):
-    """
+    r"""
     A dict-like object that carries information about LHA file(s), programs that import/export LHA files, and plots.
 
       1. LHA blocks are stored in the key `'blocks'`.
@@ -195,8 +195,8 @@ class Config(dict):
             if not self.getBlock(b['block']):
                 self.setBlock(b['block'], b['lines'])
             else:
-                for l in b['lines']:
-                    self.setLine(b['block'], l)
+                for line in b['lines']:
+                    self.setLine(b['block'], line)
         return self.validate()
 
     def getBlock(self, block):
@@ -293,6 +293,8 @@ class Config(dict):
         else:
             logging.debug('Updating line with ID %d.' % line['id'])
             b['lines'][linepos[0]] = line
+            if line.get('parameter', None) in self.parameters:
+                self.parameters[line['parameter']] = line
         return self.validate()
 
     def validate(self):
