@@ -70,7 +70,9 @@ def parseSLHA(slhafile, blocks=[]):
 
     try:
         with open(slhafile,'r') as f:
-            slha = pylha.load(f)
+            string = f.read()
+            string = string.replace('DECAY1L', 'NLODECAY')
+            slha = pylha.load(string)
     except FileNotFoundError:
         logging.error('File %s not found.' % slhafile)
         return {}
@@ -95,7 +97,7 @@ def parseSLHA(slhafile, blocks=[]):
         except:
             pass
 
-    if 'DECAY' not in slha:
+    if 'DECAY' not in slha and 'NLODECAY' not in slha:
         return slha_blocks
 
     decayblock = 'DECAYS' if 'DECAY' in slha_blocks else 'DECAY'
@@ -106,4 +108,14 @@ def parseSLHA(slhafile, blocks=[]):
             v['info'] = ''.join(str(i) for i in v['info']) if len(v['info']) > 1 else v['info'][0]
         except:
             pass
+    
+    nlodecayblock = 'NLODECAYS' if 'NLODECAY' in slha_blocks else 'NLODECAY'
+    slha_blocks[nlodecayblock] = slha['NLODECAY']
+    for d,v in slha_blocks[nlodecayblock].items():
+        try:
+            v['values'] = mergedicts([list2dict(list(reversed(l))) for l in v['values']],{})
+            v['info'] = ''.join(str(i) for i in v['info']) if len(v['info']) > 1 else v['info'][0]
+        except:
+            pass
+
     return slha_blocks
