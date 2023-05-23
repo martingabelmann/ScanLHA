@@ -101,16 +101,16 @@ def parseSLHA(slhafile, blocks=[]):
         return slha_blocks
 
     decayblock = 'DECAYS' if 'DECAY' in slha_blocks else 'DECAY'
-    slha_blocks[decayblock] = slha['DECAY']
+    slha_blocks[decayblock] = slha.get('DECAY', {})
     for d,v in slha_blocks[decayblock].items():
         try:
             v['values'] = mergedicts([list2dict(list(reversed(l))) for l in v['values']],{})
             v['info'] = ''.join(str(i) for i in v['info']) if len(v['info']) > 1 else v['info'][0]
         except:
             pass
-    
+
     nlodecayblock = 'NLODECAYS' if 'NLODECAY' in slha_blocks else 'NLODECAY'
-    slha_blocks[nlodecayblock] = slha['NLODECAY']
+    slha_blocks[nlodecayblock] = slha.get('NLODECAY', {})
     for d,v in slha_blocks[nlodecayblock].items():
         try:
             v['values'] = mergedicts([list2dict(list(reversed(l))) for l in v['values']],{})
