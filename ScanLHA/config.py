@@ -292,7 +292,9 @@ class Config(dict):
             b['lines'].append(line)
         else:
             logging.debug('Updating line with ID %d.' % line['id'])
-            b['lines'][linepos[0]] = line
+            if 'values' in line and 'value' in b['lines'][linepos[0]]:
+                del b['lines'][linepos[0]]['value']
+            b['lines'][linepos[0]].update(line)
             if line.get('parameter', None) in self.parameters:
                 self.parameters[line['parameter']] = line
         return self.validate()

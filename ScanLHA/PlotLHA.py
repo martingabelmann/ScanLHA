@@ -21,7 +21,7 @@ import matplotlib.pyplot as plt # noqa: E402
 from IPython import embed # noqa: F402, E402
 
 plt.rc('text', usetex=True)
-plt.rc('text.latex', preamble = r'\usepackage{amsmath,nicefrac,units,lmodern} \boldmath')
+plt.rc('text.latex', preamble = r'\usepackage{amsmath,nicefrac,units}') #,lmodern}')
 
 
 if os.path.isfile('functions.py'):
@@ -56,6 +56,9 @@ axisdefault = {
         'colorbar' : False,
         'colorbar_orientation': 'horizontal',
         'label' : None,
+        'labelpad' : None,
+        'lim': None,
+        'tickpad' : None,
         'datafile' : None
 }
 """
@@ -76,7 +79,7 @@ class PlotConf(ChainMap):
 #                'loc' : 'right',
 #                'bbox_to_anchor' : [1.5, 0.5]
                 },
-            'figsize': None,
+            'figsize': [4, 2.58],
             'hline': False,
             'vline': False,
             'exec': False,
@@ -87,17 +90,16 @@ class PlotConf(ChainMap):
             'cmap': None,
             'alpha' : 1.0,
             'datafile': 'results.h5',
-            'fontsize': 11,
-#           'fontsize': 17,
+            'fontsize': 15,
             'tick_params': {},
             'rcParams': {
                 'savefig.pad_inches': 0.04,
-                'font.size':11,
-#                'font.size': 17,
+                'font.size':12,
                 'text.usetex': True,
                 'font.weight' : 'normal',
             },
-            'dpi': 300,
+            'labelfontsize': 16,
+            'dpi': 150,
             'textbox': {}
             })
 
@@ -156,11 +158,11 @@ def Plot():
                 # multiple lines in one plot with legend
                 constraints: [] # ignore all global constraints
                 x-axis:
-                  field: MSUSY,
-                  label: 'Massparameter (GeV)'
+                  field: MSUSY
+                  label: '$m_{SUSY}$ (GeV)'
                 y-axis:
                   lognorm: True,
-                  label: '$m_{SUSY}$ (GeV)'
+                  label: 'Massparameter (GeV)'
                 plots:
                     - y-axis: MASS.values.25
                       color: red
@@ -226,7 +228,10 @@ def Plot():
 
     store.close()
 
-def plot(fig=''):
+def plot(fig=[]):
+    """ (re)loads config from the supplied yaml file and renders all plots using matplotlib `plt.scatter` or `plt.plot`.
+        * `fig`: list (or string) with filenames of the plots to plot. All other plots won't be plotted.
+    """
     global DATA, store
     c = Config(args.config)
     conf = PlotConf()
@@ -245,7 +250,9 @@ def plot(fig=''):
 
     pcount = 0
     for p in c['scatterplot']['plots']:
-        if fig and p['filename'] != fig:
+        if type(fig) == str:
+            fig = [fig]
+        if fig and p['filename'] not in fig:
             continue
         lcount = 0
 
@@ -275,7 +282,7 @@ def plot(fig=''):
                 # cbar.ax.xaxis.set_ticks_position('top')
             # cbar.ax.xaxis.set_label_position('top')
             if pconf['z-axis']['label']:
-                ax.set_xlabel(pconf['z-axis']['label'], labelpad=15)
+                ax.set_xlabel(pconf['z-axis']['label'], labelpad = pconf['z-axis']['labelpad'])
             cbar.update_ticks()
             plt.savefig(pconf['filename'],bbox_inches='tight')
             plt.figure()
@@ -311,9 +318,9 @@ def plot(fig=''):
                 zlabel = c.parameters.get(z, {'latex': zlabel})['latex'] if not zlabel else zlabel
 
             if xlabel:
-                plt.xlabel(xlabel)
+                plt.xlabel(xlabel, labelpad = lconf['x-axis']['labelpad'], fontsize = lconf['labelfontsize'])
             if ylabel:
-                plt.ylabel(ylabel)
+                plt.ylabel(ylabel, labelpad = lconf['y-axis']['labelpad'], fontsize = lconf['labelfontsize'])
 
             if lconf['hline']:
                 plt.axhline(y=y, color=color, linestyle='-', lw=lconf['lw'], label=label, zorder=zorder, alpha=lconf['alpha'])
@@ -395,6 +402,13 @@ def plot(fig=''):
                 PDATA = PDATA[[x,y]].dropna().sort_values(by=x)
                 cs = plt.plot(PDATA[x], PDATA[y], lconf.get('fmt', '.'), zorder=zorder, c=color, alpha=lconf['alpha'], label=label, **lconf.get('kwargs',{}))
 
+                xlim = lconf['x-axis']['lim']
+                ylim = lconf['y-axis']['lim']
+                if xlim:
+                    plt.xlim(xlim)
+                if ylim:
+                    plt.ylim(ylim)
+
             plt.grid(b=True, which='major', color='#777777', linestyle='-', alpha=0.3, zorder=0)
             plt.minorticks_on()
             plt.grid(b=True, which='minor', color='#999999', linestyle='-', alpha=0.1, zorder=0)
@@ -412,7 +426,7 @@ def plot(fig=''):
             if lconf['z-axis']['colorbar']:
                 cbar = plt.colorbar(cs, orientation=lconf['z-axis']['colorbar_orientation'], **lconf['z-axis'].get('kwargs',{}))
                 if zlabel:
-                    cbar.set_label(zlabel)
+                    cbar.set_label('$\\phantom{M^{\\overline{DR}}}$ ' + zlabel, labelpad=pconf['z-axis']['labelpad'], fontsize = lconf['labelfontsize'])
                 if lconf['z-axis']['ticks']:
                     if type(lconf['z-axis']['ticks'][0]) is not list:
                         lconf['z-axis']['ticks'] = [lconf['z-axis']['ticks'], ['${}$'.format(zt) for zt in lconf['z-axis']['ticks']]]
@@ -426,6 +440,7 @@ def plot(fig=''):
                         label.set_ha('center')
                     else:
                         label.set_va('center')
+                cbar.ax.xaxis.set_tick_params(pad=lconf['z-axis']['tickpad'])
 
             lcount += 1
 
