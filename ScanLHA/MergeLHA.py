@@ -2,7 +2,7 @@
 """
 Merges multiple HDF files into one file.
 """
-from pandas import HDFStore, DataFrame
+from pandas import HDFStore, DataFrame, concat
 from glob import glob
 import sys
 from os import getenv
@@ -59,9 +59,10 @@ def Merge():
                 tmp_df['scan_parallel'] = tmp_store.get_storer(LHAPATH).attrs.parallel
             except AttributeError:
                 pass
-            df = df.append(tmp_df, ignore_index=True)
+            df = concat([df,tmp_df], ignore_index=True)
             tmp_store.close()
 
     store[LHAPATH] = df
-    store.get_storer(LHAPATH).attrs.config = store_conf
+    if store_conf:
+        store.get_storer(LHAPATH).attrs.config = store_conf
     store.close()
