@@ -42,7 +42,7 @@ def mergedicts(l, d):
             else:
                 d[k] = l[k]
 
-def parseSLHA(slhafile, blocks=[]):
+def parseSLHA(slhafile, blocks=[],separator=None):
     """
     Turn the content of an SLHA file into a dictionary
 
@@ -66,56 +66,70 @@ def parseSLHA(slhafile, blocks=[]):
     list_blocks = {
             'HiggsCouplingsFermions': 2,
             'HiggsBoundsInputHiggsCouplingsFermions': 2,
+            'WMASS': 2, # NMSSMCALC specific
+            'DeltaRhoOS': 2,
+            'DeltaRhoDR': 2
             }
+
+    reversed_blocks = [b.upper() for b in reversed_blocks]
+    list_blocks = {b.upper() : i for b,i in list_blocks.items()}
 
     try:
         with open(slhafile,'r') as f:
-            string = f.read()
-            string = string.replace('DECAY1L', 'NLODECAY')
-            slha = pylha.load(string)
+            if separator:
+                contents = f.read().split(separator)
+                slha = [pylha.load(c.replace('DECAY1L', 'NLODECAY')) for c in contents if c.strip()]
+            else:
+                slha = [pylha.load(slhafile)]
     except FileNotFoundError:
         logging.error('File %s not found.' % slhafile)
         return {}
     except:
         logging.error('Could not parse %s !' % slhafile)
         return {}
-    try:
-        slha_blocks = slha['BLOCK']
-    except KeyError:
-        slha_blocks = {}
+
+    slha_blocks = [s.get('BLOCK',{}) for s in slha]
     if blocks:
-        slha_blocks = { b : v for b,v in slha_blocks.items() if b in blocks }
-    for b,v in slha_blocks.items():
-        try:
-            if b in list_blocks:
-                v['values'] = [ ['|'.join(str(y) for y in x[:list_blocks[b]])] + x[list_blocks[b]:] for x in v['values']]
-            if b in reversed_blocks:
-                [x.reverse() for x in v['values']]
-            v['values'] = mergedicts([list2dict(l) for l in v['values']],{})
+        slha_blocks = [{ b : v for b,v in s.items() if b in blocks } for s in slha]
+    for s in slha_blocks:
+        for b,v in s.items():
+            try:
+                if b.upper() in list_blocks:
+                    v['values'] = [ ['|'.join(str(y) for y in x[:list_blocks[b.upper()]])] + x[list_blocks[b.upper()]:] for x in v['values']]
+                if b.upper() in reversed_blocks:
+                    [x.reverse() for x in v['values']]
+                v['values'] = mergedicts([list2dict(l) for l in v['values']],{})
 
-            v['info'] = ''.join(str(i) for i in v['info'])
-        except:
-            pass
+                v['info'] = ''.join(str(i) for i in v['info'])
+            except:
+                pass
 
-    if 'DECAY' not in slha and 'NLODECAY' not in slha:
-        return slha_blocks
+    for i,s in enumerate(slha):
+        if 'DECAY' not in s:
+            continue
 
-    decayblock = 'DECAYS' if 'DECAY' in slha_blocks else 'DECAY'
-    slha_blocks[decayblock] = slha.get('DECAY', {})
-    for d,v in slha_blocks[decayblock].items():
-        try:
-            v['values'] = mergedicts([list2dict(list(reversed(l))) for l in v['values']],{})
-            v['info'] = ''.join(str(i) for i in v['info']) if len(v['info']) > 1 else v['info'][0]
-        except:
-            pass
+        decayblock = 'DECAYS' if 'DECAY' in slha_blocks[i] else 'DECAY'
+        slha_blocks[i][decayblock] = s['DECAY']
+        for d,v in slha_blocks[i][decayblock].items():
+            try:
+                v['values'] = mergedicts([list2dict(list(reversed(l))) for l in v['values']],{})
+                v['info'] = ''.join(str(i) for i in v['info']) if len(v['info']) > 1 else v['info'][0]
+            except:
+                pass
 
-    nlodecayblock = 'NLODECAYS' if 'NLODECAY' in slha_blocks else 'NLODECAY'
-    slha_blocks[nlodecayblock] = slha.get('NLODECAY', {})
-    for d,v in slha_blocks[nlodecayblock].items():
-        try:
-            v['values'] = mergedicts([list2dict(list(reversed(l))) for l in v['values']],{})
-            v['info'] = ''.join(str(i) for i in v['info']) if len(v['info']) > 1 else v['info'][0]
-        except:
-            pass
+        if 'NLODECAY' not in s:
+            continue
+
+        nlodecayblock = 'NLODECAYS' if 'NLODECAY' in slha_blocks else 'NLODECAY'
+        slha_blocks[i][nlodecayblock] = s.get('NLODECAY', {})
+        for d,v in slha_blocks[i][nlodecayblock].items():
+            try:
+                v['values'] = mergedicts([list2dict(list(reversed(l))) for l in v['values']],{})
+                v['info'] = ''.join(str(i) for i in v['info']) if len(v['info']) > 1 else v['info'][0]
+            except:
+                pass
+
+    if len(slha_blocks) == 1:
+        slha_blocks = slha_blocks[0]
 
     return slha_blocks
