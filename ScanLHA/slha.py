@@ -80,7 +80,7 @@ def parseSLHA(slhafile, blocks=[],separator=None):
                 contents = f.read().split(separator)
                 slha = [pylha.load(c.replace('DECAY1L', 'NLODECAY')) for c in contents if c.strip()]
             else:
-                slha = [pylha.load(slhafile)]
+                slha = [pylha.load(f)]
     except FileNotFoundError:
         logging.error('File %s not found.' % slhafile)
         return {}
